@@ -2,9 +2,11 @@
 
 The good stuff.
 
-**Please not that this is VERY experimental. The Idris Integer type, usually
+**Please note that this is VERY experimental. The Idris Integer type, usually
 represented as an arbitrary-precision integer, is represented as the Vim number
-type. It's a hack, deal with it. &#x1f60e;**
+type.**
+
+**It's a hack, deal with it. &#x1f60e;**
 
 ## Example
 
