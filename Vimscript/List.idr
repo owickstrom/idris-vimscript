@@ -2,94 +2,51 @@ module Vimscript.List
 
 import Vimscript.FFI
 
-%access private
-
-data Prim_VimList = Prim_MkVimList
-
-prim_empty : VIM_IO Prim_VimList
-prim_empty = do
-  MkRaw list <- foreign FFI_VIM VIM_ListEmpty (VIM_IO (Raw Prim_VimList))
-  pure list
-
-prim_concat : Prim_VimList -> Prim_VimList -> VIM_IO Prim_VimList
-prim_concat a1 a2 = do
-  MkRaw list <-
-    foreign
-      FFI_VIM
-      VIM_ListConcat
-      (Raw Prim_VimList -> Raw Prim_VimList -> VIM_IO (Raw Prim_VimList))
-      (MkRaw a1)
-      (MkRaw a2)
-  pure list
-
-prim_cons : a -> Prim_VimList -> VIM_IO Prim_VimList
-prim_cons {a} x list = do
-  MkRaw list <-
-    foreign
-    FFI_VIM
-    VIM_ListCons
-    (Raw a -> Raw Prim_VimList -> VIM_IO (Raw Prim_VimList))
-    (MkRaw x)
-    (MkRaw list)
-  pure list
-
-prim_snoc : Prim_VimList -> a -> VIM_IO Prim_VimList
-prim_snoc {a} list x = do
-  MkRaw list <-
-    foreign
-    FFI_VIM
-    VIM_ListSnoc
-    (Raw Prim_VimList -> Raw a -> VIM_IO (Raw Prim_VimList))
-    (MkRaw list)
-    (MkRaw x)
-  pure list
-
-prim_setAt : Int -> a -> Prim_VimList -> VIM_IO ()
-prim_setAt {a} i x list =
-  foreign
-    FFI_VIM
-    VIM_ListSetAt
-    (Int -> Raw a -> Raw Prim_VimList -> VIM_IO ())
-    i
-    (MkRaw x)
-    (MkRaw list)
-
-
 %access export
 
-data VimList : Type -> Type where
-  MkVimList : (prim_list : Prim_VimList) -> VimList a
+empty : {auto p : VIM_Types (VimList a)} -> VimList a
+empty {a} =
+  unsafePerformIO $
+  foreign FFI_VIM VIM_ListEmpty (VIM_IO (VimList a))
 
-empty : VIM_IO (VimList t)
-empty = do
-  parr <- prim_empty
-  pure (MkVimList parr)
+concat : {auto p : VIM_Types (VimList a)} -> VimList a -> VimList a -> VimList a
+concat {a} l1 l2 =
+  unsafePerformIO $
+  foreign
+  FFI_VIM
+  VIM_ListConcat
+  (VimList a -> VimList a -> VIM_IO (VimList a))
+  l1
+  l2
 
-setAt: Int -> t -> VimList t -> VIM_IO ()
-setAt i x (MkVimList l) = prim_setAt i x l
+cons : {auto p : VIM_Types a} -> {auto p' : VIM_Types (VimList a)} -> (x : a) -> VimList a -> VimList a
+cons {a} x list =
+  unsafePerformIO $
+  foreign
+  FFI_VIM
+  VIM_ListCons
+  (a -> VimList a -> VIM_IO (VimList a))
+  x
+  list
 
-cons : t -> VimList t -> VIM_IO (VimList t)
-cons x (MkVimList l) = do
-  l2 <- prim_cons x l
-  pure (MkVimList l2)
+snoc : {auto p : VIM_Types a} -> {auto p' : VIM_Types (VimList a)} -> VimList a -> (x : a) -> VimList a
+snoc {a} list x =
+  unsafePerformIO $
+  foreign
+  FFI_VIM
+  VIM_ListSnoc
+  (VimList a -> a -> VIM_IO (VimList a))
+  list
+  x
 
-snoc : VimList t -> t -> VIM_IO (VimList t)
-snoc (MkVimList l) x = do
-  l2 <- prim_snoc l x
-  pure (MkVimList l2)
+fromFoldable : (Foldable f) => {auto p : VIM_Types a} -> f a -> VimList a
+fromFoldable = foldl snoc empty
 
-concat : VimList t -> VimList t -> VIM_IO (VimList t)
-concat (MkVimList l1) (MkVimList l2) = do
-  l3 <- prim_concat l1 l2
-  pure (MkVimList l3)
+l1 : List String
+l1 = do
+  hi <- ["Hi", "Hello", "Greetings"]
+  who <- ["world", "Vim", "Idris"]
+  pure (hi ++ ", " ++ who ++ "!")
 
--- prepend : t -> VimList t -> VIM_IO (VimList t)
---
--- append : t -> VimList t -> VIM_IO (VimList t)
-
--- toVimList : (Traversable f) => f String -> VIM_IO (VimList )
--- toVimList {from} {to} xs = do
---   list <- empty
---   traverse_ (\x => list `push` (toJS {from} {to} x)) xs
---   pure list
-
+l2 : VimList String
+l2 = fromFoldable l1

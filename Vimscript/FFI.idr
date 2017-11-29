@@ -7,6 +7,10 @@ mutual
   data VimFn t = MkVimFn t
 
   public export
+  data VimList : Type -> Type where
+    MkVimList : VimList a
+
+  public export
   data VIM_FnTypes : Type -> Type where
     VIM_Fn : VIM_Types s -> VIM_FnTypes t -> VIM_FnTypes (s -> t)
     VIM_FnIO : VIM_Types t -> VIM_FnTypes (IO' l t)
@@ -16,12 +20,10 @@ mutual
   data VIM_Types : Type -> Type where
     VIM_Str    : VIM_Types String
     VIM_Int    : VIM_Types Int
-    VIM_Ptr    : VIM_Types Ptr
-    VIM_Raw    : VIM_Types (Raw a)
     VIM_Float  : VIM_Types Double
     VIM_Unit   : VIM_Types ()
+    VIM_List   : VIM_Types (VimList a)
     VIM_FnT    : VIM_FnTypes t -> VIM_Types (VimFn t)
-    -- VIM_ArrayT : VIM_Types (VimArray t)
 
 public export
 data VIM_Foreign

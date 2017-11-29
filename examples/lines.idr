@@ -4,28 +4,37 @@ import Vimscript.FFI
 import Vimscript.List
 import Vimscript.Builtin
 
-substr : Int -> Int -> String -> String
-substr = prim__strSubstr
+printWith : (String -> VIM_IO ()) -> String -> VIM_IO ()
+printWith f s =
+  f (s ++ "!")
 
-length : String -> Int
-length = prim_lenString
+numbers : VimList Int
+numbers =
+  let l1 = cons 1 (cons 2 empty)
+      l2 = snoc (snoc empty 3) 4
+  in concat l1 l2
 
-prefixPrint : String -> String -> VIM_IO ()
-prefixPrint p s =
-  echo (p ++ s)
+-- Construct a regular List of Strings.
+idrisList : List String
+idrisList = do
+  hi <- ["Hi", "Hello", "Greetings"]
+  who <- ["world", "Vim", "Idris"]
+  pure (hi ++ ", " ++ who ++ "!")
 
 main : VIM_IO ()
 main = do
+  -- You can do Vimmy stuff:
   l <- line "$"
   s <- getline (l - 1)
-  let printResult = prefixPrint "Result: "
-  printResult s
 
-  arr1 <- List.empty
-    >>= flip List.snoc 1
-    >>= flip List.snoc 2
-  arr2 <- List.empty
-    >>= flip List.snoc 3
-    >>= flip List.snoc 4
-  arr <- List.concat arr1 arr2
-  echo arr
+  -- Higher-order functions:
+  printWith echo s
+
+  -- We can echo Vim types:
+  echo numbers
+
+  -- Convert an Idris List to a VimList:
+  let greetings = fromFoldable (the (List String) idrisList)
+
+  -- Add the to end of the current buffer:
+  appendLines l greetings
