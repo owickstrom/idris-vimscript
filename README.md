@@ -21,9 +21,23 @@ main = do
 
 ## Build and Install
 
+Install the code generator:
 ``` shell
 stack install # or cabal install
+```
+
+Install the Vimscript library for Idris:
+
+``` shell
 idris --install vimscript.ipkg
+```
+
+## Run Examples
+
+``` shell
+make
+vim examples/lines.vim
+# :source %             (in Vim)
 ```
 
 ## License

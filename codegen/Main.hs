@@ -21,8 +21,9 @@ showUsage = do
   exitSuccess
 
 getOpts :: IO Opts
-getOpts = do xs <- getArgs
-             return $ process (Opts [] "a.php") xs
+getOpts = do
+  xs <- getArgs
+  return $ process (Opts [] "main.vim") xs
   where
     process opts ("-o":o:xs) = process (opts { output = o }) xs
     process opts (x:xs) = process (opts { inputs = x:inputs opts }) xs
