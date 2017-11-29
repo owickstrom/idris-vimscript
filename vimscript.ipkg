@@ -1,0 +1,4 @@
+package vimscript
+
+modules = Vimscript.FFI
+pkgs    = prelude
