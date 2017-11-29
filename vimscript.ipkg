@@ -1,4 +1,6 @@
 package vimscript
 
 modules = Vimscript.FFI
+        , Vimscript.List
+        , Vimscript.Builtin
 pkgs    = prelude

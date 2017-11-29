@@ -12,10 +12,11 @@ getline : Int -> VIM_IO String
 getline = foreign FFI_VIM (VIM_BuiltIn "getline") (Int -> VIM_IO String)
 
 appendLines : Int -> VimList String -> VIM_IO ()
-appendLines = foreign FFI_VIM (VIM_BuiltIn "append") (Int -> VimList String -> VIM_IO ())
+appendLines i l =
+  foreign FFI_VIM (VIM_BuiltIn "append") (Int -> Raw (VimList String) -> VIM_IO ()) i (MkRaw l)
 
-echo : {auto p : VIM_Types t} -> (x : t) -> VIM_IO ()
-echo {t} v = foreign FFI_VIM VIM_Echo (t -> VIM_IO ()) v
+echo : (x : t) -> VIM_IO ()
+echo {t} v = foreign FFI_VIM VIM_Echo (Raw t -> VIM_IO ()) (MkRaw v)
 
 match : String -> String -> Int
 match str regexp =

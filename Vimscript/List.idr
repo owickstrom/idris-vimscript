@@ -2,51 +2,87 @@ module Vimscript.List
 
 import Vimscript.FFI
 
-%access export
+%default total
 
-empty : {auto p : VIM_Types (VimList a)} -> VimList a
+public export
+data VimList a = MkList (Raw a)
+
+public export
+empty : VimList a
 empty {a} =
-  unsafePerformIO $
-  foreign FFI_VIM VIM_ListEmpty (VIM_IO (VimList a))
+  unsafePerformIO $ do
+    MkRaw l <- foreign FFI_VIM VIM_ListEmpty (VIM_IO (Raw (VimList a)))
+    pure l
 
-concat : {auto p : VIM_Types (VimList a)} -> VimList a -> VimList a -> VimList a
+unsafeIndex : Int -> VimList a -> a
+unsafeIndex {a} i l =
+  unsafePerformIO $ do
+    MkRaw a <- foreign FFI_VIM VIM_ListIndex (Int -> Raw (VimList a) -> VIM_IO (Raw a)) i (MkRaw l)
+    pure a
+
+public export
+length : VimList a -> Nat
+length {a} l =
+  unsafePerformIO $ do
+    n <- foreign FFI_VIM (VIM_BuiltIn "len") (Raw (VimList a) -> VIM_IO Int) (MkRaw l)
+    pure (fromInteger (cast n))
+
+public export
+concat : VimList a -> VimList a -> VimList a
 concat {a} l1 l2 =
-  unsafePerformIO $
-  foreign
-  FFI_VIM
-  VIM_ListConcat
-  (VimList a -> VimList a -> VIM_IO (VimList a))
-  l1
-  l2
+  unsafePerformIO $ do
+    MkRaw l3 <-
+      foreign
+      FFI_VIM
+      VIM_ListConcat
+      (Raw (VimList a) -> Raw (VimList a) -> VIM_IO (Raw (VimList a)))
+      (MkRaw l1)
+      (MkRaw l2)
+    pure l3
 
-cons : {auto p : VIM_Types a} -> {auto p' : VIM_Types (VimList a)} -> (x : a) -> VimList a -> VimList a
-cons {a} x list =
-  unsafePerformIO $
-  foreign
-  FFI_VIM
-  VIM_ListCons
-  (a -> VimList a -> VIM_IO (VimList a))
-  x
-  list
+public export
+cons : (x : a) -> VimList a -> VimList a
+cons {a} x l1 =
+  unsafePerformIO $ do
+    MkRaw l2 <-
+      foreign
+      FFI_VIM
+      VIM_ListCons
+      (Raw a -> Raw (VimList a) -> VIM_IO (Raw (VimList a)))
+      (MkRaw x)
+      (MkRaw l1)
+    pure l2
 
-snoc : {auto p : VIM_Types a} -> {auto p' : VIM_Types (VimList a)} -> VimList a -> (x : a) -> VimList a
-snoc {a} list x =
-  unsafePerformIO $
-  foreign
-  FFI_VIM
-  VIM_ListSnoc
-  (VimList a -> a -> VIM_IO (VimList a))
-  list
-  x
+public export
+head : VimList a -> Maybe a
+head {a} l1 =
+  case length l1 of
+    Z => Nothing
+    S _ => Just (unsafeIndex 0 l1)
 
-fromFoldable : (Foldable f) => {auto p : VIM_Types a} -> f a -> VimList a
+
+public export
+snoc : VimList a -> (x : a) -> VimList a
+snoc {a} l1 x =
+  unsafePerformIO $ do
+    MkRaw l2 <-
+      foreign
+      FFI_VIM
+      VIM_ListSnoc
+      (Raw (VimList a) -> Raw a -> VIM_IO (Raw (VimList a)))
+      (MkRaw l1)
+      (MkRaw x)
+    pure l2
+
+public export
+fromFoldable : (Foldable f) => f a -> VimList a
 fromFoldable = foldl snoc empty
 
-l1 : List String
-l1 = do
+test1 : List String
+test1 = do
   hi <- ["Hi", "Hello", "Greetings"]
   who <- ["world", "Vim", "Idris"]
   pure (hi ++ ", " ++ who ++ "!")
 
-l2 : VimList String
-l2 = fromFoldable l1
+test2 : VimList String
+test2 = fromFoldable test1

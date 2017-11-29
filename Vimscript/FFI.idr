@@ -2,13 +2,11 @@ module Vimscript.FFI
 
 import Builtins
 
+%default total
+
 mutual
   public export
   data VimFn t = MkVimFn t
-
-  public export
-  data VimList : Type -> Type where
-    MkVimList : VimList a
 
   public export
   data VIM_FnTypes : Type -> Type where
@@ -22,13 +20,14 @@ mutual
     VIM_Int    : VIM_Types Int
     VIM_Float  : VIM_Types Double
     VIM_Unit   : VIM_Types ()
-    VIM_List   : VIM_Types (VimList a)
+    VIM_Raw    : VIM_Types (Raw a)
     VIM_FnT    : VIM_FnTypes t -> VIM_Types (VimFn t)
 
 public export
 data VIM_Foreign
   = VIM_Echo
   | VIM_ListEmpty
+  | VIM_ListIndex
   | VIM_ListCons
   | VIM_ListSnoc
   | VIM_ListConcat
