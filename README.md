@@ -3,8 +3,8 @@
 The good stuff.
 
 **Please note that this is VERY experimental. The Idris Integer type, usually
-represented as an arbitrary-precision integer, is represented as the Vim number
-type.**
+represented as an arbitrary-precision integer, is represented using the Vim
+number type.**
 
 **It's a hack, deal with it. &#x1f60e;**
 
