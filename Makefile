@@ -1,3 +1,3 @@
 .PHONY: examples
-examples: examples/lines.idr
-	idris examples/lines.idr -p vimscript --codegen vim -o examples/lines.vim
+examples: examples/misc.idr
+	idris examples/misc.idr -p vimscript --codegen vim -o examples/misc.vim
