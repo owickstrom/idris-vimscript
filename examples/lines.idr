@@ -1,7 +1,5 @@
 module Main
 
-import Data.Vect
-
 import Vimscript.FFI
 import Vimscript.List
 import Vimscript.Builtin
@@ -26,23 +24,22 @@ idrisList = do
 l3 : VimList (VimList String)
 l3 = fromFoldable (map fromFoldable (the (List (List String)) [["Hi", "there"]]))
 
-v1 : Vect 2 Int
-v1 = [666] ++ [999]
-
-l4 : VimList Int
-l4 = fromFoldable v1
-
 main : VIM_IO ()
 main = do
-  -- You can do Vimmy stuff:
+  -- THINGS YOU CAN DO:
+
+  -- Weird shit like this:
+  set "maxfuncdepth" "10000"
+
+  -- Regular Vimmy stuff:
   l <- line "$"
   s <- getline (l - 1)
   let sl = length s
 
-  -- Higher-order functions:
+  -- Of course, higher-order functions:
   printWith echo (substr 3 (3 + sl) s)
 
-  -- We can echo Vim types:
+  -- Echo things:
   echo numbers
 
   -- Convert an Idris List to a VimList:
@@ -51,9 +48,6 @@ main = do
   -- Add the to end of the current buffer:
   appendLines l greetings
 
-  -- Echo nested listed:
+  -- Echo a nested listed:
   echo l3
-
-  -- And what was a vector...
-  echo l4
 

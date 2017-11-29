@@ -1,7 +1,5 @@
 module Vimscript.FFI
 
-import Builtins
-
 %default total
 
 mutual

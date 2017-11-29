@@ -1,0 +1,29 @@
+Name:           idris-vim
+Version:        0.0.1.0
+License:        BSD3
+License-file:   LICENSE
+Author:         Oskar Wickström
+Maintainer:	    Oskar Wickström <oskar.wickstrom@gmail.com>
+Build-Type:	Simple
+Cabal-Version:  >= 1.8
+
+Executable idris-codegen-vim
+  Main-is:        Main.hs
+  hs-source-dirs: codegen
+
+  Build-depends:  idris
+                , base
+                , containers
+                , directory
+                , filepath
+                , hashable
+                , mainland-pretty
+                , mtl
+                , unordered-containers
+                , text
+                , transformers
+
+  other-modules:    IRTS.CodegenVim
+                    Vimscript.AST
+                    Vimscript.Render
+  ghc-options:      -threaded -Wall

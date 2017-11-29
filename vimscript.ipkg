@@ -1,6 +1,16 @@
 package vimscript
 
-modules = Vimscript.FFI
-        , Vimscript.List
-        , Vimscript.Builtin
-pkgs    = prelude
+brief      = "Generate Vimscript from Idris"
+version    = 0.1.0
+readme     = README.md
+license    = README.md
+author     = Oskar Wickström
+maintainer = Oskar Wickström
+homepage   = https://github.com/owickstrom/idris-vimscript
+sourceloc  = git:github.com:owickstrom/idris-vimscript.git
+bugtracker = https://github.com/owickstrom/idris-vimscript/issues
+
+sourcedir = lib
+modules   = Vimscript.FFI
+          , Vimscript.List
+          , Vimscript.Builtin
