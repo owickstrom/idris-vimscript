@@ -1,3 +1,4 @@
 *.ibc
 *.o
 .stack-work
+examples/*.vim

@@ -19,4 +19,13 @@ main = do
   echo (substr 3 (3 + sl) s) -- print a part of it
 ```
 
+## Build and Install
+
+``` shell
+stack install # or cabal install
+idris --install vimscript.ipkg
+```
+
 ## License
+
+[BSD 3 License](LICENSE). Original work by Edwin Brady.
