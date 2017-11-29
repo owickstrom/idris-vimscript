@@ -27,6 +27,8 @@ public export
 data VIM_Foreign
   = VIM_Echo
   | VIM_ListEmpty
+  | VIM_ListCons
+  | VIM_ListSnoc
   | VIM_ListConcat
   | VIM_ListSetAt
   | VIM_BuiltIn String
@@ -43,8 +45,3 @@ VIM_IO = IO' FFI_VIM
 
 IO : Type -> Type
 IO a = IO' FFI_VIM a
-
-%inline
-public export
-vimCode : (ft : VIM_Foreign) -> (ty : Type) -> {auto fty : FTy FFI_VIM [] ty} -> ty
-vimCode ft ty = foreign FFI_VIM ft ty
