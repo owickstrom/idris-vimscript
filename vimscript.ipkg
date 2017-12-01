@@ -13,4 +13,4 @@ bugtracker = https://github.com/owickstrom/idris-vimscript/issues
 sourcedir = lib
 modules   = Vimscript.FFI
           , Vimscript.List
-          , Vimscript.Builtin
+          , Vimscript.Builtins
