@@ -7,7 +7,9 @@ module IRTS.CodegenVim
   ) where
 
 import           Control.Monad.Reader
+import Control.Monad.IO.Class
 import           Data.Char
+import Numeric
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as HM
 import           Data.List
@@ -23,17 +25,68 @@ import qualified Vimscript.Render          as Vim
 
 codegenVim :: CodeGenerator
 codegenVim ci = do
-  let prg = runReader (genProgram (simpleDecls ci)) HM.empty
+  let decls = simpleDecls ci
+  prg <- runReaderT (genProgram decls) HM.empty
   writeFile (outputFile ci) (pretty 200 (Vim.renderProgram prg))
 
-type Gen a = Reader (HashMap Vim.Name Vim.ScopedName) a
+type Gen a = ReaderT (HashMap Vim.Name Vim.ScopedName) IO a
 
 vimName :: Idris.Name -> Vim.Name
 vimName n = Vim.Name ("Idris_" <> foldMap vimChar (showCG n))
   where
-    vimChar x
-      | isAlpha x || isDigit x = T.singleton x
-      | otherwise = "_" <> T.pack (show (fromEnum x)) <> "_"
+  vimChar x
+    | isAlpha x || isDigit x = T.singleton x
+    | otherwise = T.pack (encode_digit_ch x)
+
+  unencodedChar :: Char -> Bool   -- True for chars that don't need encoding
+  unencodedChar 'Z' = False
+  unencodedChar 'z' = False
+  unencodedChar c   =  c >= 'a' && c <= 'z'
+                    || c >= 'A' && c <= 'Z'
+                    || c >= '0' && c <= '9'
+
+  -- If a digit is at the start of a symbol then we need to encode it.
+  -- Otherwise package names like 9pH-0.1 give linker errors.
+  encode_digit_ch :: Char -> String
+  encode_digit_ch c | c >= '0' && c <= '9' = encode_as_unicode_char c
+  encode_digit_ch c | otherwise            = encode_ch c
+
+  encode_ch :: Char -> String
+  encode_ch c | unencodedChar c = [c]     -- Common case first
+  -- encode_ch '('  = "ZL"   -- Needed for things like (,), and (->)
+  -- encode_ch ')'  = "ZR"   -- For symmetry with (
+  -- encode_ch '['  = "ZM"
+  -- encode_ch ']'  = "ZN"
+  encode_ch ':'  = "ZC"
+  encode_ch 'Z'  = "ZZ"
+  encode_ch 'z'  = "zz"
+  encode_ch '&'  = "za"
+  encode_ch '|'  = "zb"
+  encode_ch '^'  = "zc"
+  encode_ch '$'  = "zd"
+  encode_ch '='  = "ze"
+  encode_ch '>'  = "zg"
+  encode_ch '#'  = "zh"
+  encode_ch '.'  = "zi"
+  encode_ch '<'  = "zl"
+  encode_ch '-'  = "zm"
+  encode_ch '!'  = "zn"
+  encode_ch '+'  = "zp"
+  encode_ch '\'' = "zq"
+  encode_ch '\\' = "zr"
+  encode_ch '/'  = "zs"
+  encode_ch '*'  = "zt"
+  encode_ch '_'  = "zu"
+  encode_ch '%'  = "zv"
+  encode_ch c    = encode_as_unicode_char c
+
+  encode_as_unicode_char :: Char -> String
+  encode_as_unicode_char c = 'z' : if isDigit (head hex_str) then hex_str
+                                                             else '0':hex_str
+    where hex_str = showHex (ord c) "U"
+    -- ToDo: we could improve the encoding here in various ways.
+    -- eg. strings of unicode characters come out as 'z1234Uz5678U', we
+    -- could remove the 'U' in the middle (the 'z' works as a separator).
 
 lookupName :: Vim.Name -> Gen Vim.ScopedName
 lookupName n = do
@@ -49,7 +102,9 @@ withNewNames :: [Vim.ScopedName] -> Gen a -> Gen a
 withNewNames ns g = foldl' (flip withNewName) g ns
 
 loc :: Int -> Vim.Name
-loc i = Vim.Name ("loc" <> T.pack (show i))
+loc i 
+  | i <= 26 = Vim.Name (T.singleton (toEnum (i + fromEnum 'a') :: Char))
+  | otherwise = Vim.Name ("loc" <> T.pack (show i))
 
 topLevelName :: Name -> Vim.ScopedName
 topLevelName n = Vim.ScopedName Vim.Script (vimName n)
@@ -60,7 +115,8 @@ genProgram defs = do
   fns <- withNewNames topLevelNames (mapM genTopLevel defs)
   let start =
         Vim.Call (Vim.ScopedName Vim.Script (vimName (sMN 0 "runMain"))) []
-  pure (Vim.Program (fns ++ [start]))
+  let stmts = fns ++ [start]
+  pure (Vim.Program stmts)
 
 genTopLevel :: (Name, SDecl) -> Gen Vim.Stmt
 genTopLevel (n, SFun _ args _i def) = genFunc n args def

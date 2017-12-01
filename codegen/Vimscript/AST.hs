@@ -1,12 +1,20 @@
-{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, StandaloneDeriving              #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Vimscript.AST where
 
+import Data.Monoid
 import           Data.Hashable
 import           Data.String
-import           Data.Text
+import Data.Text (Text)
+import qualified Data.Text as T
 import           GHC.Generics
+import qualified Data.Map as M
+import Data.Map (Map)
+import Debug.Trace
+import Data.Data (Data, Typeable)
+import Data.Generics.Uniplate.Data
 
 data NameScope
   = BuiltIn
@@ -14,20 +22,20 @@ data NameScope
   | Local
   | Script
   | Argument
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Data, Typeable)
 
 instance Hashable NameScope
 
 newtype Name =
   Name Text
-  deriving (Eq, Show, IsString, Generic)
+  deriving (Eq, Show, IsString, Generic, Ord, Data, Typeable)
 
 instance Hashable Name
 
 data ScopedName =
   ScopedName NameScope
              Name
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Data, Typeable)
 
 instance Hashable ScopedName
 
@@ -45,14 +53,14 @@ data BinOp
   | GT
   | GTE
   | Concat
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 data Primitive
   = Integer Integer
   | Floating Double
   | String Text
   | List [Expr]
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 data Projection
   = ProjSingle Expr -- [expr]
@@ -60,7 +68,7 @@ data Projection
   | ProjTo Expr -- [:expr]
   | ProjBoth Expr
              Expr -- [expr1:expr2]
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 data Expr
   = BinOpApply BinOp
@@ -72,7 +80,7 @@ data Expr
           [Expr]
   | Proj Expr
          Projection
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 intExpr :: Integral n => n -> Expr
 intExpr = Prim . Integer . fromIntegral
@@ -91,24 +99,28 @@ type Block = [Stmt]
 data CondCase =
   CondCase Expr
            Block
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 data CondStmt =
   CondStmt CondCase
            [CondCase]
            (Maybe Block)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 data AssignTarget
   = AssignName ScopedName
   | AssignProj AssignTarget
                Projection
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 data Stmt
   = Let Name
         Expr
   | Return Expr
+  | LineComment Text
+  | While Expr Block
+  | Break
+  | Continue
   | Function ScopedName
              [Name]
              Block
@@ -119,8 +131,9 @@ data Stmt
            Expr
   | BuiltInStmt Name
                 Expr
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 newtype Program =
   Program [Stmt]
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
+

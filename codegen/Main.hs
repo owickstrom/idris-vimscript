@@ -23,7 +23,7 @@ showUsage = do
 getOpts :: IO Opts
 getOpts = do
   xs <- getArgs
-  return $ process (Opts [] "main.vim") xs
+  return $ process (Opts [] "main.vim") ["main.ibc", "-o", "main.vim"]
   where
     process opts ("-o":o:xs) = process (opts { output = o }) xs
     process opts (x:xs) = process (opts { inputs = x:inputs opts }) xs
