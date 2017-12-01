@@ -29,7 +29,10 @@ main = do
   -- THINGS YOU CAN DO:
 
   -- Weird shit like this:
-  set "maxfuncdepth" "10000"
+  set "background" "dark"
+
+  -- Or even more scary:
+  execute "echo 'Any Vim code!'"
 
   -- Regular Vimmy stuff:
   l <- line "$"
@@ -50,4 +53,3 @@ main = do
 
   -- Echo a nested listed:
   echo l3
-
