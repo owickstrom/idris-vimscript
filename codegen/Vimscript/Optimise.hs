@@ -22,7 +22,7 @@ transforms
   = insertHeader 
   . tco 
   . dce 
-  . inlineLocalPrims 
+  -- . inlineLocalPrims 
   . arityRename
 
 dce :: Program -> Program
@@ -161,8 +161,7 @@ inlineLocalPrimsPrim kn (List es) = List (map (inlineLocalPrimsExpr kn) es)
 inlineLocalPrimsPrim _ p = p
   
 inlinable :: Expr -> Bool
-inlinable Prim{} = True
-inlinable Ref{} = True
+-- inlinable Prim{} = True
 -- inlinable (BinOpApply _ e f) = inlinable e && inlinable f
 inlinable _ = False
 
