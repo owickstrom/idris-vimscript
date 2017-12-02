@@ -5,8 +5,22 @@ import Vimscript.List
 
 %access export
 
+%inline
 builtin : String -> (ty : Type) -> {auto fty : FTy FFI_VIM [] ty} -> ty
-builtin name = foreign FFI_VIM (VIM_BuiltIn name)
+builtin name = 
+  foreign FFI_VIM (VIM_BuiltIn name)
+
+||| Read the value of a Vim option with unspecified scope (`&foo`).
+|||
+||| This function *must* be given a %inline annotation, otherwise the
+||| `name` is not reduced sufficiently during compilation and remains
+||| an FCon instead of becoming an FStr.
+|||
+||| @ name (case-sensitive)
+%inline
+readOption : (name : String) -> VIM_IO String
+readOption name = 
+  foreign FFI_VIM (VIM_GetOption name) (VIM_IO String)
 
 ||| Execute a string as Vimscript.
 %inline
@@ -91,7 +105,7 @@ strpart' str start = unsafePerformIO
     (builtin "strpart" (String -> Int -> VIM_IO String) str start)
 
 ||| Access Vim's built-in globbing functionality.
-||| 
+|||
 ||| Current file name:
 ||| ```idris
 ||| expand '%'
@@ -102,7 +116,7 @@ strpart' str start = unsafePerformIO
 ||| expand '<cword>'
 ||| ```
 expand : String -> VIM_IO String
-expand str = builtin "expand" (String -> VIM_IO String) str 
+expand str = builtin "expand" (String -> VIM_IO String) str
 
 cursor : (line : Int) -> (col : Int) -> VIM_IO ()
 cursor line col = builtin "cursor" (Int -> Int -> VIM_IO ()) line col
@@ -113,6 +127,16 @@ getcwd = builtin "getcwd" (VIM_IO String)
 ||| Execute a shell command and discard the output.
 system' : String -> VIM_IO ()
 system' = builtin "system" (String -> VIM_IO ())
+
+----------------------
+-- [Ex commands] -----
+----------------------
+
+split : VIM_IO ()
+split = execute "split"
+
+vsplit : VIM_IO ()
+vsplit = execute "vsplit"
 
 -- %inline
 -- getpos : (mark : String) -> VIM_IO ()
@@ -156,7 +180,7 @@ public export
 data SubRepeatFlag = UseLastSearch | GlobalReplace
 
 public export
-data Ed 
+data Ed
   = Delete
   | Write (Maybe Filename)
   | Sub Range Regex String FlagSet
@@ -182,7 +206,7 @@ ppEd Delete = "d"
 ppEd (SubRepeat fs) = "s" ++ (concat (map ppSubRepeatFlag fs))
 ppEd (Sub r re s f) = r ++ "s/" ++ re ++ "/" ++ s ++ "/" ++ f
 ppEd (Write f)
-  = case f of 
+  = case f of
          Nothing => "w"
          Just x => "w " ++ x
 ppEd (Global re a) = "g/" ++ re ++ "/" ++ ppEd a
@@ -192,8 +216,11 @@ ppEd (Move r l) = ppRange r ++ "m" ++ ppLine l
 exec : Ed -> VIM_IO ()
 exec = execute . ppEd
 
+sub : Range -> Regex -> String -> FlagSet -> VIM_IO ()
+sub r re s fs = exec (Sub r re s fs)
+
 sub' : Range -> Regex -> String -> VIM_IO ()
-sub' r re s = exec (Sub r re s noFlags)
+sub' r re s = sub r re s noFlags
 
 -- TODO escaping
 global : Regex -> Ed -> VIM_IO ()
@@ -219,7 +246,7 @@ check : List (Lazy Bool) -> VIM_IO ()
 check x = echo (if and x then "All tests passed" else "Some tests failed")
 
 public export
-data VimSwitch 
+data VimSwitch
   = No VimSwitch
   | Compatible
   | ExpandTab
@@ -253,7 +280,7 @@ public export
 data VimEncoding = UTF8
 
 public export
-data VimOption 
+data VimOption
   = Syntax Power
   | TabStop Int
   | SoftTabStop Int
@@ -262,4 +289,5 @@ data VimOption
 
 set : VimOption -> VIM_IO ()
 set (Syntax p) = unsafeSetUnary "syntax" (ppPower p)
+
 

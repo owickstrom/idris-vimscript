@@ -25,6 +25,11 @@ renderScopedName (ScopedName scope name) = prefix <> renderName name
         Local    -> "l:"
         Script   -> "s:"
         Argument -> "a:"
+        Register -> "@"
+        Option -> "&"
+        LocalOption -> "&l:"
+        GlobalOption -> "&g:"
+        Environment -> "$"
 
 renderBinOp :: BinOp -> Doc
 renderBinOp =

@@ -22,6 +22,11 @@ data NameScope
   | Local
   | Script
   | Argument
+  | Register
+  | Option
+  | LocalOption
+  | GlobalOption
+  | Environment
   deriving (Eq, Show, Generic, Data, Typeable)
 
 instance Hashable NameScope

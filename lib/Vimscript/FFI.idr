@@ -31,6 +31,9 @@ data VIM_Foreign
   | VIM_ListConcat
   | VIM_ListSetAt
   | VIM_BuiltIn String
+  | VIM_GetOption String
+  | VIM_SetOption String
+  | VIM_ToggleOption String
 
 %error_reverse
 public export

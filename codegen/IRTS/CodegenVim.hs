@@ -2,9 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
 
-module IRTS.CodegenVim
-  ( codegenVim
-  ) where
+module IRTS.CodegenVim where
 
 import           Control.Monad.Reader
 import Control.Monad.IO.Class
@@ -286,10 +284,17 @@ genForeign ret (FCon name) params =
     ("VIM_ListConcat", [l1, l2]) -> do
       stmt <- ret (Vim.BinOpApply Vim.Add l1 l2)
       pure [stmt]
-    (other, _) -> error ("Foreign function not supported: " ++ other)
+    (other, p) -> error ("Foreign function not supported: " ++ other ++ " " ++ show p)
 genForeign ret (FApp (showCG -> "VIM_BuiltIn") [FStr name]) params = do
   stmt <- ret (Vim.Apply (Vim.Ref (Vim.builtIn (T.pack name))) params)
   pure [stmt]
+genForeign ret (FApp (showCG -> "VIM_GetOption") fs) _ = 
+  case fs of
+    [FStr name] -> do
+      stmt <- ret (Vim.Ref (Vim.ScopedName Vim.Option (Vim.Name (T.pack name))))
+      pure [stmt]
+    _ -> do
+      error (show fs ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
 
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
