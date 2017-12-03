@@ -27,8 +27,15 @@ before_install:
 install:
 - stack install hlint idris
 script:
+  # Formatting checks
 - hlint codegen/
+- export HS_FILES="$(find codegen -name '*.hs')"
+- diff --color -u <(stylish-haskell $FILES) <(cat $FILES)
+  # Test suite
 - stack --no-terminal test
+  # Build code generator
 - stack build
+  # Install the Vimscript library for Idris
 - stack exec idris -- --install vimscript.ipkg
+  # Compile examples to Vimscript
 - make examples
