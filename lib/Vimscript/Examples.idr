@@ -31,21 +31,7 @@ stripTrailingWhitespace = do
 
 main : VIM_IO ()
 main = do
-  -- -- -- v/Idris_/m$
-  -- vglobal "Idris_" moveEnd
-  -- -- -- %s/Idris_//
-  -- sub' entireFile "Idris_" ""
-  -- disable Compatible
-  -- set (Syntax On)
-
-  -- check ["asdf" == tolower "AsDf"
-  --       ,"ASDF" == toupper "AsDf"
-  --       ,"''\\'''" == shellescape "'"
-  --       ]
-
-  -- echo ("current file name: " ++ !(expand "%"))
-  -- echo ("current working directory: " ++ !getcwd)
-  -- echo !(getline !(line "$"))
-  echo !(readOption "readonly")
+  echo ("Readonly flag is set to " ++ !(readOption "readonly"))
   writeOption "readonly" 1
+  echo ("Readonly flag is set to " ++ !(readOption "readonly"))
 

@@ -24,7 +24,7 @@ builtin name =
 %inline
 readOption : (name : String) -> VIM_IO String
 readOption name = 
-  foreign FFI_VIM (VIM_GetOption name) (VIM_IO String)
+  foreign FFI_VIM (VIM_Get VIM_Option name) (VIM_IO String)
 
 ||| Write the value of a Vim option with unspecified scope (`&foo`).
 |||
@@ -34,7 +34,7 @@ readOption name =
 %inline
 writeOption : (name : String) -> (x : t) -> VIM_IO ()
 writeOption {t} name x = 
-  foreign FFI_VIM (VIM_SetOption name) (Raw t -> VIM_IO ()) (MkRaw x)
+  foreign FFI_VIM (VIM_Set VIM_Option name) (Raw t -> VIM_IO ()) (MkRaw x)
 
 ||| Execute a string as Vimscript.
 %inline

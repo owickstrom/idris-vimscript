@@ -22,6 +22,17 @@ mutual
     VIM_FnT    : VIM_FnTypes t -> VIM_Types (VimFn t)
 
 public export
+data VIM_Scope
+  = VIM_Local
+  | VIM_Global
+
+public export
+data VIM_MutableRef
+  = VIM_Option
+  | VIM_ScopedOption VIM_Scope
+  | VIM_Register
+
+public export
 data VIM_Foreign
   = VIM_Echo
   | VIM_ListEmpty
@@ -31,9 +42,9 @@ data VIM_Foreign
   | VIM_ListConcat
   | VIM_ListSetAt
   | VIM_BuiltIn String
-  | VIM_GetOption String
-  | VIM_SetOption String
-  | VIM_ToggleOption String
+  | VIM_Get VIM_MutableRef String
+  | VIM_Set VIM_MutableRef String
+  | VIM_Toggle VIM_MutableRef String
 
 %error_reverse
 public export

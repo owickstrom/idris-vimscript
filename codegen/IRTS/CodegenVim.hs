@@ -288,22 +288,29 @@ genForeign ret (FCon name) params =
 genForeign ret (FApp (showCG -> "VIM_BuiltIn") [FStr name]) params = do
   stmt <- ret (Vim.Apply (Vim.Ref (Vim.builtIn (T.pack name))) params)
   pure [stmt]
-genForeign ret (FApp (showCG -> "VIM_GetOption") fs) _ = 
+genForeign ret (FApp (showCG -> "VIM_Get") fs) params = 
   case fs of
-    [FStr name] -> do
-      stmt <- ret (Vim.Ref (Vim.ScopedName Vim.Option (Vim.Name (T.pack name))))
+    [FCon (showCG -> con), FStr name] -> do
+      stmt <- ret (Vim.Ref (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))))
       pure [stmt]
     _ -> do
-      error (show fs ++ " not sufficiently reduced! Use a %inline.")
-genForeign ret (FApp (showCG -> "VIM_SetOption") fs) params = 
+      error (show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
+genForeign ret (FApp (showCG -> "VIM_Set") fs) params = 
   case (fs, params) of
-    ([FStr name], [rhs]) -> do
-      stmt <- pure (Vim.Let (Vim.ScopedName Vim.Option (Vim.Name (T.pack name))) rhs)
+    ([FCon (showCG -> con), FStr name], [rhs]) -> do
+      stmt <- pure (Vim.Let (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))) rhs)
       pure [stmt]
     _ | length params > 1 -> error "Too many RHS terms!"
     _ -> do
-      error (show fs ++ " not sufficiently reduced! Use a %inline.")
+      error (show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
+
+fromFFICon :: String -> Vim.NameScope
+fromFFICon = \case
+  "VIM_Option" -> Vim.Option
+  "VIM_LocalOption" -> Vim.LocalOption
+  "VIM_GlobalOption" -> Vim.GlobalOption
+  "VIM_Argument" -> Vim.Argument
 
 -- | Implement a @PrimFn@ in terms of Vim primitives.
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
