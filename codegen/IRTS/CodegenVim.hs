@@ -5,7 +5,6 @@
 module IRTS.CodegenVim where
 
 import           Control.Monad.Reader
-import Control.Monad.IO.Class
 import           Data.Char
 import Numeric
 import           Data.HashMap.Strict       (HashMap)
@@ -25,10 +24,10 @@ import IRTS.CodegenVim.Internal.ZEncoding
 codegenVim :: CodeGenerator
 codegenVim ci = do
   let decls = simpleDecls ci
-  prg <- runReaderT (genProgram decls) HM.empty
+  let prg = runReader (genProgram decls) HM.empty
   writeFile (outputFile ci) (pretty 200 (Vim.renderProgram prg))
 
-type Gen a = ReaderT (HashMap Vim.Name Vim.ScopedName) IO a
+type Gen a = Reader (HashMap Vim.Name Vim.ScopedName) a
 
 vimName :: Idris.Name -> Vim.Name
 vimName n = Vim.Name (T.pack ("Idris_" <> foldMap vimChar (showCG n)))
