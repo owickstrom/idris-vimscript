@@ -84,7 +84,7 @@ renderAssignTarget =
 renderStmt :: Stmt -> Doc
 renderStmt =
   \case
-    Let name expr ->
+    LocalLet name expr ->
       "let" <+>
       renderScopedName (ScopedName Local name) <+> "=" <+> renderExpr expr
     Return expr -> "return" <+> renderExpr expr

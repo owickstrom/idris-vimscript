@@ -39,7 +39,7 @@ notDeadCode useds = \case
 
 refs :: Stmt -> [Name]
 refs = \case
-  Let _ e -> refsExpr e
+  LocalLet _ e -> refsExpr e
   Function s args ss -> concatMap refs ss
   Return e -> refsExpr e
   Call s es -> refsName s ++ concatMap refsExpr es
@@ -113,11 +113,11 @@ inlineLocalPrims' :: Map Name Expr -> Block -> Block
 inlineLocalPrims' kn b@(s:ss) = if remove s then rest else s':rest
   where
   remove = \case
-    Let _ e | inlinable e -> True
+    LocalLet _ e | inlinable e -> True
     _ -> False
   rest = inlineLocalPrims' kn' ss
   kn' = case s of
-    Let n e -> let kn' = M.delete n kn in
+    LocalLet n e -> let kn' = M.delete n kn in
                if inlinable e then M.insert n e kn' else kn'
     _ -> kn
   s' = case s of
@@ -126,7 +126,7 @@ inlineLocalPrims' kn b@(s:ss) = if remove s then rest else s':rest
     Call s es -> Call s (map (inlineLocalPrimsExpr kn) es)
     BuiltInStmt n e | traceShow kn True -> BuiltInStmt n (inlineLocalPrimsExpr kn e)
     Cond c -> Cond (inlineLocalPrimsCond kn c)
-    Let n e -> Let n (inlineLocalPrimsExpr kn e)
+    LocalLet n e -> LocalLet n (inlineLocalPrimsExpr kn e)
     Assign{} -> error "assign"
 inlineLocalPrims' _ [] = []
 
@@ -184,7 +184,7 @@ tcoFunc fn@(Function n as bl) = [Function n as bl'']
  where
     bl' = tcoBlock n as bl
     loopedBl = [While (Prim (Integer 1)) (bl' ++ [Break])]
-    localCopy = zipWith (\n n' -> Let n (Ref (ScopedName Argument n'))) as as
+    localCopy = zipWith (\n n' -> LocalLet n (Ref (ScopedName Argument n'))) as as
     bl'' = if isRecursiveFn fn then localCopy ++ argumentToLocal loopedBl else bl'
 tcoFunc _ = error "unreachable: tcoFunc"
 
@@ -202,7 +202,7 @@ tcoStmt :: ScopedName -> [Name] -> Stmt -> Block
 tcoStmt n as s = case s of
   Return (Apply (Ref sn) args) | sn == n -> adjust
     where
-      adjust = zipWith Let as args ++ [Continue]
+      adjust = zipWith LocalLet as args ++ [Continue]
   Cond c -> [Cond (tcoCond n as c)]
   s -> [s]
 

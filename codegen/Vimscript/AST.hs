@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric, DeriveDataTypeable, StandaloneDeriving              #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Vimscript.AST where
 
@@ -119,7 +120,7 @@ data AssignTarget
   deriving (Eq, Show, Data, Typeable)
 
 data Stmt
-  = Let Name
+  = Let ScopedName
         Expr
   | Return Expr
   | LineComment Text
@@ -137,6 +138,9 @@ data Stmt
   | BuiltInStmt Name
                 Expr
   deriving (Eq, Show, Data, Typeable)
+
+pattern LocalLet :: Name -> Expr -> Stmt
+pattern LocalLet n e = Let (ScopedName Local n) e
 
 newtype Program =
   Program [Stmt]

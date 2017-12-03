@@ -160,7 +160,7 @@ genStmts ret =
     SLet (Loc i) v sc -> do
       let n = loc i
           sn = Vim.ScopedName Vim.Local n
-      let' <- genStmts (pure . Vim.Let n) v
+      let' <- genStmts (pure . Vim.LocalLet n) v
       rest <- withNewName sn (genStmts (withNewName sn . ret) sc)
       pure (let' ++ rest)
     SUpdate _ e -> genStmts ret e
@@ -223,7 +223,7 @@ genCases ret c alts =
           where letProject :: (Int, Int) -> Gen Vim.Stmt
                 letProject (i, v) = do
                   let expr = Vim.Proj c (Vim.ProjSingle (Vim.intExpr i))
-                  pure (Vim.Let (loc v) expr)
+                  pure (Vim.LocalLet (loc v) expr)
         SDefaultCase exp' -> do
           block <- genStmts ret exp'
           pure (cases, defaultCase ++ block)
