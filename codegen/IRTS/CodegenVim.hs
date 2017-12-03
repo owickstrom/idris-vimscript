@@ -308,35 +308,35 @@ genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
 -- | Implement a @PrimFn@ in terms of Vim primitives.
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
 genPrimFn LWriteStr [_, s] = pure (Vim.applyBuiltIn "Idris_echo" [s])
-genPrimFn LStrRev [x] =
-  pure
-    (Vim.applyBuiltIn
-       "join"
-       [ Vim.applyBuiltIn
-           "reverse"
-           [Vim.applyBuiltIn "split" [x, Vim.stringExpr ".\\zs"]]
-       , Vim.stringExpr ""
-       ])
-genPrimFn LStrLen [x] = pure (Vim.applyBuiltIn "len" [x])
-genPrimFn LStrHead [x] =
-  pure (Vim.Proj x (Vim.ProjSingle (Vim.intExpr (0 :: Int))))
 genPrimFn LStrIndex [x, y] = pure (Vim.Proj x (Vim.ProjSingle y))
 genPrimFn LStrSubstr [i, l, s] =
   pure (Vim.Proj s (Vim.ProjBoth i (Vim.BinOpApply Vim.Subtract l i)))
-genPrimFn LStrTail [x] =
-  pure (Vim.Proj x (Vim.ProjFrom (Vim.intExpr (0 :: Int))))
-genPrimFn (LIntStr _) [x] =
-  pure (Vim.BinOpApply Vim.Concat x (Vim.stringExpr ""))
-genPrimFn (LStrInt _) [x] = pure (Vim.applyBuiltIn "str2nr" [x])
-genPrimFn (LChInt _) [x] = pure (Vim.applyBuiltIn "char2nr" [x])
-genPrimFn (LIntCh _) [x] = pure (Vim.applyBuiltIn "nr2char" [x])
-genPrimFn (LSExt _ _) [x] = pure x
-genPrimFn (LTrunc _ _) [x] = pure x
-genPrimFn (LZExt _ _) [x] = pure x
 genPrimFn (asBinOp -> Just binOp) [l, r] = pure (Vim.BinOpApply binOp l r)
 genPrimFn (LExternal n) params =
   pure (Vim.applyBuiltIn (T.pack (showCG n)) params)
 genPrimFn LReadStr _ =
   error "Cannot read strings using the idris-vimscript-backend!"
+
+genPrimFn unaryPrimFn [x] = pure $ case unaryPrimFn of
+  LStrRev ->
+      Vim.applyBuiltIn
+         "join"
+         [ Vim.applyBuiltIn
+             "reverse"
+             [Vim.applyBuiltIn "split" [x, Vim.stringExpr ".\\zs"]]
+         , Vim.stringExpr ""
+         ]
+  LStrLen -> Vim.applyBuiltIn "len" [x]
+  LStrHead -> Vim.Proj x (Vim.ProjSingle (Vim.intExpr (0 :: Int)))
+  LStrTail -> Vim.Proj x (Vim.ProjFrom (Vim.intExpr (0 :: Int)))
+  LIntStr{} -> Vim.BinOpApply Vim.Concat x (Vim.stringExpr "")
+  LStrInt{} -> Vim.applyBuiltIn "str2nr" [x]
+  LChInt{} -> Vim.applyBuiltIn "char2nr" [x]
+  LIntCh{} -> Vim.applyBuiltIn "nr2char" [x]
+  LSExt{} -> x
+  LTrunc{} -> x
+  LZExt{} -> x
+  _ -> error $ "Unary primitive function " ++ show unaryPrimFn ++ " " ++ show [x] ++ " not implemented!"
+
 genPrimFn f exps =
   error $ "PrimFn " ++ show f ++ " " ++ show exps ++ " not implemented!"
