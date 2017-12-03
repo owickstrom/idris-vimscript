@@ -1,16 +1,16 @@
 module Main where
 
-import Control.Monad (void)
+import           Control.Monad      (void)
 
-import Idris.AbsSyntax
-import Idris.ElabDecls
-import Idris.Main
+import           Idris.AbsSyntax
+import           Idris.ElabDecls
+import           Idris.Main
 
-import IRTS.Compiler
-import IRTS.CodegenVim
+import           IRTS.CodegenVim
+import           IRTS.Compiler
 
-import System.Environment
-import System.Exit
+import           System.Environment
+import           System.Exit
 
 data Opts = Opts { inputs :: [FilePath],
                    output :: FilePath }
@@ -26,8 +26,8 @@ getOpts = do
   return $ process (Opts [] "main.vim") xs
   where
     process opts ("-o":o:xs) = process (opts { output = o }) xs
-    process opts (x:xs) = process (opts { inputs = x:inputs opts }) xs
-    process opts [] = opts
+    process opts (x:xs)      = process (opts { inputs = x:inputs opts }) xs
+    process opts []          = opts
 
 mainWithOpts :: Opts -> Idris ()
 mainWithOpts opts = do

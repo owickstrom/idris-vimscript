@@ -22,8 +22,10 @@ Executable idris-codegen-vim
                 , unordered-containers
                 , text
                 , transformers
+                , uniplate
 
   other-modules:    IRTS.CodegenVim
                     Vimscript.AST
                     Vimscript.Render
+                    Vimscript.Optimise
   ghc-options:      -threaded -Wall

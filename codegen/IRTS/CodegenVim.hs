@@ -2,38 +2,38 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
 
-module IRTS.CodegenVim
-  ( codegenVim
-  ) where
+module IRTS.CodegenVim where
 
 import           Control.Monad.Reader
 import           Data.Char
-import           Data.HashMap.Strict       (HashMap)
-import qualified Data.HashMap.Strict       as HM
+import           Data.HashMap.Strict                (HashMap)
+import qualified Data.HashMap.Strict                as HM
 import           Data.List
 import           Data.Semigroup
-import qualified Data.Text                 as T
-import           Idris.Core.TT             as Idris
+import qualified Data.Text                          as T
+import           Idris.Core.TT                      as Idris
 import           IRTS.CodegenCommon
+import           IRTS.CodegenVim.Internal.ZEncoding
 import           IRTS.Lang
 import           IRTS.Simplified
-import           Text.PrettyPrint.Mainland (pretty)
-import qualified Vimscript.AST             as Vim
-import qualified Vimscript.Render          as Vim
+import           Text.PrettyPrint.Mainland          (pretty)
+import qualified Vimscript.AST                      as Vim
+import qualified Vimscript.Render                   as Vim
 
 codegenVim :: CodeGenerator
 codegenVim ci = do
-  let prg = runReader (genProgram (simpleDecls ci)) HM.empty
+  let decls = simpleDecls ci
+  let prg = runReader (genProgram decls) HM.empty
   writeFile (outputFile ci) (pretty 200 (Vim.renderProgram prg))
 
 type Gen a = Reader (HashMap Vim.Name Vim.ScopedName) a
 
 vimName :: Idris.Name -> Vim.Name
-vimName n = Vim.Name ("Idris_" <> foldMap vimChar (showCG n))
+vimName n = Vim.Name (T.pack ("Idris_" <> foldMap vimChar (showCG n)))
   where
-    vimChar x
-      | isAlpha x || isDigit x = T.singleton x
-      | otherwise = "_" <> T.pack (show (fromEnum x)) <> "_"
+  vimChar x
+    | isAlpha x || isDigit x = [x]
+    | otherwise = zEncode x
 
 lookupName :: Vim.Name -> Gen Vim.ScopedName
 lookupName n = do
@@ -49,7 +49,9 @@ withNewNames :: [Vim.ScopedName] -> Gen a -> Gen a
 withNewNames ns g = foldl' (flip withNewName) g ns
 
 loc :: Int -> Vim.Name
-loc i = Vim.Name ("loc" <> T.pack (show i))
+loc i
+  | i <= 26 = Vim.Name (T.singleton (toEnum (i + fromEnum 'a') :: Char))
+  | otherwise = Vim.Name ("loc" <> T.pack (show i))
 
 topLevelName :: Name -> Vim.ScopedName
 topLevelName n = Vim.ScopedName Vim.Script (vimName n)
@@ -60,7 +62,8 @@ genProgram defs = do
   fns <- withNewNames topLevelNames (mapM genTopLevel defs)
   let start =
         Vim.Call (Vim.ScopedName Vim.Script (vimName (sMN 0 "runMain"))) []
-  pure (Vim.Program (fns ++ [start]))
+  let stmts = fns ++ [start]
+  pure (Vim.Program stmts)
 
 genTopLevel :: (Name, SDecl) -> Gen Vim.Stmt
 genTopLevel (n, SFun _ args _i def) = genFunc n args def
@@ -106,7 +109,7 @@ genStmts ret =
     SLet (Loc i) v sc -> do
       let n = loc i
           sn = Vim.ScopedName Vim.Local n
-      let' <- genStmts (pure . Vim.Let n) v
+      let' <- genStmts (pure . Vim.LocalLet n) v
       rest <- withNewName sn (genStmts (withNewName sn . ret) sc)
       pure (let' ++ rest)
     SUpdate _ e -> genStmts ret e
@@ -169,11 +172,12 @@ genCases ret c alts =
           where letProject :: (Int, Int) -> Gen Vim.Stmt
                 letProject (i, v) = do
                   let expr = Vim.Proj c (Vim.ProjSingle (Vim.intExpr i))
-                  pure (Vim.Let (loc v) expr)
+                  pure (Vim.LocalLet (loc v) expr)
         SDefaultCase exp' -> do
           block <- genStmts ret exp'
           pure (cases, defaultCase ++ block)
 
+-- | Translate constants to Vim expressions.
 genConst :: Const -> Gen Vim.Expr
 genConst =
   \case
@@ -202,6 +206,7 @@ asBinOp =
     LStrEq -> Just Vim.Equals
     _ -> Nothing
 
+-- | Translate primops from the Idris FFI to Vim commands.
 genForeign :: (Vim.Expr -> Gen Vim.Stmt) -> FDesc -> [Vim.Expr] -> Gen Vim.Block
 genForeign ret (FCon name) params =
   case (showCG name, params) of
@@ -230,43 +235,68 @@ genForeign ret (FCon name) params =
     ("VIM_ListConcat", [l1, l2]) -> do
       stmt <- ret (Vim.BinOpApply Vim.Add l1 l2)
       pure [stmt]
-    (other, _) -> error ("Foreign function not supported: " ++ other)
+    (other, p) -> error ("Foreign function not supported: " ++ other ++ " " ++ show p)
 genForeign ret (FApp (showCG -> "VIM_BuiltIn") [FStr name]) params = do
   stmt <- ret (Vim.Apply (Vim.Ref (Vim.builtIn (T.pack name))) params)
   pure [stmt]
+genForeign ret (FApp (showCG -> "VIM_Get") fs) params =
+  case fs of
+    [FCon (showCG -> con), FStr name] -> do
+      stmt <- ret (Vim.Ref (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))))
+      pure [stmt]
+    _ -> 
+      error ("VIM_Get: " ++ show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
+genForeign _ (FApp (showCG -> "VIM_Set") fs) params =
+  case (fs, params) of
+    ([FCon (showCG -> con), FStr name], [rhs]) -> do
+      stmt <- pure (Vim.Let (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))) rhs)
+      pure [stmt]
+    _ | length params > 1 -> error "Too many RHS terms!"
+    _ ->
+      error (show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
 
+fromFFICon :: String -> Vim.NameScope
+fromFFICon = \case
+  "VIM_Option" -> Vim.Option
+  "VIM_LocalOption" -> Vim.LocalOption
+  "VIM_GlobalOption" -> Vim.GlobalOption
+  "VIM_Argument" -> Vim.Argument
+  "VIM_Register" -> Vim.Register
+  x -> error ("Ilegal FFI mutable variable type " ++ show x)
+
+-- | Implement a @PrimFn@ in terms of Vim primitives.
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
 genPrimFn LWriteStr [_, s] = pure (Vim.applyBuiltIn "Idris_echo" [s])
-genPrimFn LStrRev [x] =
-  pure
-    (Vim.applyBuiltIn
-       "join"
-       [ Vim.applyBuiltIn
-           "reverse"
-           [Vim.applyBuiltIn "split" [x, Vim.stringExpr ".\\zs"]]
-       , Vim.stringExpr ""
-       ])
-genPrimFn LStrLen [x] = pure (Vim.applyBuiltIn "len" [x])
-genPrimFn LStrHead [x] =
-  pure (Vim.Proj x (Vim.ProjSingle (Vim.intExpr (0 :: Int))))
 genPrimFn LStrIndex [x, y] = pure (Vim.Proj x (Vim.ProjSingle y))
 genPrimFn LStrSubstr [i, l, s] =
   pure (Vim.Proj s (Vim.ProjBoth i (Vim.BinOpApply Vim.Subtract l i)))
-genPrimFn LStrTail [x] =
-  pure (Vim.Proj x (Vim.ProjFrom (Vim.intExpr (0 :: Int))))
-genPrimFn (LIntStr _) [x] =
-  pure (Vim.BinOpApply Vim.Concat x (Vim.stringExpr ""))
-genPrimFn (LStrInt _) [x] = pure (Vim.applyBuiltIn "str2nr" [x])
-genPrimFn (LChInt _) [x] = pure (Vim.applyBuiltIn "char2nr" [x])
-genPrimFn (LIntCh _) [x] = pure (Vim.applyBuiltIn "nr2char" [x])
-genPrimFn (LSExt _ _) [x] = pure x
-genPrimFn (LTrunc _ _) [x] = pure x
-genPrimFn (LZExt _ _) [x] = pure x
 genPrimFn (asBinOp -> Just binOp) [l, r] = pure (Vim.BinOpApply binOp l r)
 genPrimFn (LExternal n) params =
   pure (Vim.applyBuiltIn (T.pack (showCG n)) params)
 genPrimFn LReadStr _ =
   error "Cannot read strings using the idris-vimscript-backend!"
+
+genPrimFn unaryPrimFn [x] = pure $ case unaryPrimFn of
+  LStrRev ->
+      Vim.applyBuiltIn
+         "join"
+         [ Vim.applyBuiltIn
+             "reverse"
+             [Vim.applyBuiltIn "split" [x, Vim.stringExpr ".\\zs"]]
+         , Vim.stringExpr ""
+         ]
+  LStrLen -> Vim.applyBuiltIn "len" [x]
+  LStrHead -> Vim.Proj x (Vim.ProjSingle (Vim.intExpr (0 :: Int)))
+  LStrTail -> Vim.Proj x (Vim.ProjFrom (Vim.intExpr (0 :: Int)))
+  LIntStr{} -> Vim.BinOpApply Vim.Concat x (Vim.stringExpr "")
+  LStrInt{} -> Vim.applyBuiltIn "str2nr" [x]
+  LChInt{} -> Vim.applyBuiltIn "char2nr" [x]
+  LIntCh{} -> Vim.applyBuiltIn "nr2char" [x]
+  LSExt{} -> x
+  LTrunc{} -> x
+  LZExt{} -> x
+  _ -> error $ "Unary primitive function " ++ show unaryPrimFn ++ " " ++ show [x] ++ " not implemented!"
+
 genPrimFn f exps =
   error $ "PrimFn " ++ show f ++ " " ++ show exps ++ " not implemented!"

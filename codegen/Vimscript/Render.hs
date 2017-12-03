@@ -7,6 +7,10 @@ import           Prelude                   hiding (Ordering (..))
 import           Text.PrettyPrint.Mainland
 
 import           Vimscript.AST
+import           Vimscript.Optimise        as Vim
+
+indentWidth :: Int
+indentWidth = 4
 
 renderName :: Name -> Doc
 renderName (Name n) = strictText n
@@ -16,11 +20,16 @@ renderScopedName (ScopedName scope name) = prefix <> renderName name
   where
     prefix =
       case scope of
-        BuiltIn  -> empty
-        Global   -> "g:"
-        Local    -> "l:"
-        Script   -> "s:"
-        Argument -> "a:"
+        BuiltIn      -> empty
+        Global       -> "g:"
+        Local        -> "l:"
+        Script       -> "s:"
+        Argument     -> "a:"
+        Register     -> "@"
+        Option       -> "&"
+        LocalOption  -> "&l:"
+        GlobalOption -> "&g:"
+        Environment  -> "$"
 
 renderBinOp :: BinOp -> Doc
 renderBinOp =
@@ -75,16 +84,19 @@ renderAssignTarget =
 renderStmt :: Stmt -> Doc
 renderStmt =
   \case
-    Let name expr ->
+    Let sn expr ->
       "let" <+>
-      renderScopedName (ScopedName Local name) <+> "=" <+> renderExpr expr
+      renderScopedName sn <+> "=" <+> renderExpr expr
     Return expr -> "return" <+> renderExpr expr
     Function scopedName args block ->
-      "function" <+>
+      "function!" <+>
       renderScopedName scopedName <>
       commaSepIn lparen rparen (map renderName args) </>
-      indent 4 (renderBlock block) </>
+      indent indentWidth (renderBlock block) </>
       "endfunction"
+    Break -> "break"
+    Continue -> "continue"
+    While expr bl -> "while" <+> renderExpr expr </> indent indentWidth (renderBlock bl) </> "endwhile"
     Call name params ->
       "call" <+>
       renderScopedName name <> commaSepIn lparen rparen (map renderExpr params)
@@ -93,15 +105,17 @@ renderStmt =
       stack (map renderElseIf elseIfCases) </>
       maybe empty (renderCase "else") mElseCase </>
       "endif"
-      where renderCase h block = h </> indent 4 (renderBlock block)
+      where renderCase h block = h </> indent indentWidth (renderBlock block)
             renderElseIf (CondCase expr block) =
               renderCase ("elseif" <+> renderExpr expr) block
     Assign tgt expr ->
       "let" <+> renderAssignTarget tgt <+> "=" <+> renderExpr expr
     BuiltInStmt name expr -> renderName name <+> parens (renderExpr expr)
+    LineComment contents -> "\"" <+> strictText contents
 
 renderBlock :: Block -> Doc
 renderBlock = stack . map renderStmt
 
 renderProgram :: Program -> Doc
-renderProgram (Program stmts) = stack (map renderStmt stmts)
+renderProgram prog = stack (map renderStmt stmts)
+  where Program stmts = Vim.transforms prog
