@@ -15,29 +15,35 @@ import Vimscript.List
 -- an FCon instead of becoming an FStr.
 
 %inline
+echo : (x : t) -> VIM_IO ()
+echo {t} v = foreign FFI_VIM VIM_Echo (Raw t -> VIM_IO ()) (MkRaw v)
+
+||| Call a Vim builtin.
+%inline
 builtin : String -> (ty : Type) -> {auto fty : FTy FFI_VIM [] ty} -> ty
 builtin name = 
   foreign FFI_VIM (VIM_BuiltIn name)
 
-||| Read the value of a Vim mutable reference with unspecified scope (`&foo`).
+||| Read the value of a Vim mutable reference.
 %inline
 readMutableRef : (ref : VIM_MutableRef) -> (name : String) -> VIM_IO String
 readMutableRef ref name = 
   foreign FFI_VIM (VIM_Get ref name) (VIM_IO String)
 
-||| Write the value of a Vim mutable reference with unspecified scope (`&foo`).
+||| Write the value of a Vim mutable reference.
 %inline
 writeMutableRef : (ref : VIM_MutableRef) -> (name : String) -> (x : t) -> VIM_IO ()
 writeMutableRef {t} ref name x = 
   foreign FFI_VIM (VIM_Set ref name) (Raw t -> VIM_IO ()) (MkRaw x)
  
-||| Write the value of a Vim option with unspecified scope (`&foo`).
+||| Read the value of a Vim option with unspecified scope (`&foo`).
 %inline
 readOption : (name : String) -> VIM_IO String
 readOption name = readMutableRef VIM_Option name
 
+||| Write the value of a Vim option with unspecified scope (`&foo`).
 %inline
-writeOption : {t : Type} -> (name : String) -> (x : t) -> VIM_IO ()
+writeOption : (name : String) -> (x : t) -> VIM_IO ()
 writeOption name x = writeMutableRef VIM_Option name x
 
 ||| Execute a string as Vimscript.
@@ -45,10 +51,7 @@ writeOption name x = writeMutableRef VIM_Option name x
 execute : String -> VIM_IO ()
 execute = builtin "execute" (String -> VIM_IO ())
 
-||| Set a Vim option of the form `setting=value`. Type-unsafe.
-%inline
-unsafeSetUnary : String -> String -> VIM_IO ()
-unsafeSetUnary o v = execute ("set " ++ o ++ "=" ++ v)
+-- [ Vim builtins ] ------------------------------------------------------------
 
 %inline
 line : String -> VIM_IO Int
@@ -66,10 +69,6 @@ getline = builtin "getline" (Int -> VIM_IO String)
 appendLines : Int -> VimList String -> VIM_IO ()
 appendLines i l =
   builtin "append" (Int -> Raw (VimList String) -> VIM_IO ()) i (MkRaw l)
-
-%inline
-echo : (x : t) -> VIM_IO ()
-echo {t} v = foreign FFI_VIM VIM_Echo (Raw t -> VIM_IO ()) (MkRaw v)
 
 -- %inline
 -- putStr : String -> VIM_IO ()
@@ -146,9 +145,14 @@ getcwd = builtin "getcwd" (VIM_IO String)
 system' : String -> VIM_IO ()
 system' = builtin "system" (String -> VIM_IO ())
 
-----------------------
--- [Ex commands] -----
-----------------------
+-- [ Derived operations ] ------------------------------------------------------
+
+||| Set a Vim option of the form `setting=value`. Type-unsafe.
+%inline
+unsafeSetUnary : String -> String -> VIM_IO ()
+unsafeSetUnary o v = execute ("set " ++ o ++ "=" ++ v)
+
+-- [Ex commands] ---------------------------------------------------------------
 
 split : VIM_IO ()
 split = execute "split"
@@ -198,13 +202,13 @@ public export
 data SubRepeatFlag = UseLastSearch | GlobalReplace
 
 public export
-data Ed
+data Ex
   = Delete
   | Write (Maybe Filename)
   | Sub Range Regex String FlagSet
   | SubRepeat (List SubRepeatFlag)
-  | Global Regex Ed
-  | VGlobal Regex Ed
+  | Global Regex Ex
+  | VGlobal Regex Ex
   | Move (Maybe Range) Line
   | Undo
 
@@ -219,20 +223,20 @@ ppRange : Maybe Range -> String
 ppRange Nothing = ""
 ppRange (Just r) = r
 
-ppEd : Ed -> String
-ppEd Delete = "d"
-ppEd (SubRepeat fs) = "s" ++ (concat (map ppSubRepeatFlag fs))
-ppEd (Sub r re s f) = r ++ "s/" ++ re ++ "/" ++ s ++ "/" ++ f
-ppEd (Write f)
+ppEx : Ex -> String
+ppEx Delete = "d"
+ppEx (SubRepeat fs) = "s" ++ (concat (map ppSubRepeatFlag fs))
+ppEx (Sub r re s f) = r ++ "s/" ++ re ++ "/" ++ s ++ "/" ++ f
+ppEx (Write f)
   = case f of
          Nothing => "w"
          Just x => "w " ++ x
-ppEd (Global re a) = "g/" ++ re ++ "/" ++ ppEd a
-ppEd (VGlobal re a) = "v/" ++ re ++ "/" ++ ppEd a
-ppEd (Move r l) = ppRange r ++ "m" ++ ppLine l
+ppEx (Global re a) = "g/" ++ re ++ "/" ++ ppEx a
+ppEx (VGlobal re a) = "v/" ++ re ++ "/" ++ ppEx a
+ppEx (Move r l) = ppRange r ++ "m" ++ ppLine l
 
-exec : Ed -> VIM_IO ()
-exec = execute . ppEd
+exec : Ex -> VIM_IO ()
+exec = execute . ppEx
 
 sub : Range -> Regex -> String -> FlagSet -> VIM_IO ()
 sub r re s fs = exec (Sub r re s fs)
@@ -241,23 +245,23 @@ sub' : Range -> Regex -> String -> VIM_IO ()
 sub' r re s = sub r re s noFlags
 
 -- TODO escaping
-global : Regex -> Ed -> VIM_IO ()
+global : Regex -> Ex -> VIM_IO ()
 global re a = exec (Global re a)
 
-vglobal : Regex -> Ed -> VIM_IO ()
+vglobal : Regex -> Ex -> VIM_IO ()
 vglobal re a = exec (VGlobal re a)
 
-v : Regex -> Ed -> VIM_IO ()
+v : Regex -> Ex -> VIM_IO ()
 v = vglobal
 
-g : Regex -> Ed -> VIM_IO ()
+g : Regex -> Ex -> VIM_IO ()
 g = global
 
-d : Ed
+d : Ex
 d = Delete
 
 -- m$
-moveEnd : Ed
+moveEnd : Ex
 moveEnd = Move Nothing Last
 
 check : List (Lazy Bool) -> VIM_IO ()

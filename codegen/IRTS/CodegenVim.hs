@@ -311,6 +311,7 @@ fromFFICon = \case
   "VIM_LocalOption" -> Vim.LocalOption
   "VIM_GlobalOption" -> Vim.GlobalOption
   "VIM_Argument" -> Vim.Argument
+  _ -> error "unknown FFI mutable variable type"
 
 -- | Implement a @PrimFn@ in terms of Vim primitives.
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
