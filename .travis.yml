@@ -1,0 +1,34 @@
+language: c
+sudo: false
+cache:
+  apt: true
+  directories:
+  - "$HOME/.stack"
+  - "$TRAVIS_BUILD_DIR/.stack-work/install"
+addons:
+  apt:
+    packages:
+    - libgmp-dev
+matrix:
+  include:
+  - os: linux
+  # Disabled for now, so slow:
+  # - os: osx
+before_install:
+- unset CC
+- export PATH=/opt/ghc/$GHCVER/bin:$PATH
+- mkdir -p ~/.local/bin
+- export PATH=$HOME/.local/bin:$PATH
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then STACK_OS=osx-x86_64 ; fi
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then STACK_OS=linux-x86_64 ; fi
+- travis_retry curl -L https://www.stackage.org/stack/$STACK_OS | tar xz --strip-components=1
+  -C ~/.local/bin
+- stack --no-terminal setup
+install:
+- stack install hlint idris
+script:
+- hlint codegen/
+- stack --no-terminal test
+- stack build
+- stack exec idris -- --install vimscript.ipkg
+- make examples
