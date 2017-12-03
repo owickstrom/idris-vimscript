@@ -226,6 +226,7 @@ genCases ret c alts =
           block <- genStmts ret exp'
           pure (cases, defaultCase ++ block)
 
+-- | Translate constants to Vim expressions.
 genConst :: Const -> Gen Vim.Expr
 genConst =
   \case
@@ -254,6 +255,7 @@ asBinOp =
     LStrEq -> Just Vim.Equals
     _ -> Nothing
 
+-- | Translate primops from the Idris FFI to Vim commands.
 genForeign :: (Vim.Expr -> Gen Vim.Stmt) -> FDesc -> [Vim.Expr] -> Gen Vim.Block
 genForeign ret (FCon name) params =
   case (showCG name, params) of
@@ -303,6 +305,7 @@ genForeign ret (FApp (showCG -> "VIM_SetOption") fs) params =
       error (show fs ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
 
+-- | Implement a @PrimFn@ in terms of Vim primitives.
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
 genPrimFn LWriteStr [_, s] = pure (Vim.applyBuiltIn "Idris_echo" [s])
 genPrimFn LStrRev [x] =
