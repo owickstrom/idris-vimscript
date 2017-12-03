@@ -1,19 +1,21 @@
 module Main where
 
-import           Control.Monad      (void)
+import Control.Monad (void)
 
-import           Idris.AbsSyntax
-import           Idris.ElabDecls
-import           Idris.Main
+import Idris.AbsSyntax
+import Idris.ElabDecls
+import Idris.Main
 
-import           IRTS.CodegenVim
-import           IRTS.Compiler
+import IRTS.CodegenVim
+import IRTS.Compiler
 
-import           System.Environment
-import           System.Exit
+import System.Environment
+import System.Exit
 
-data Opts = Opts { inputs :: [FilePath],
-                   output :: FilePath }
+data Opts = Opts
+  { inputs :: [FilePath]
+  , output :: FilePath
+  }
 
 showUsage :: IO ()
 showUsage = do
@@ -25,9 +27,9 @@ getOpts = do
   xs <- getArgs
   return $ process (Opts [] "main.vim") xs
   where
-    process opts ("-o":o:xs) = process (opts { output = o }) xs
-    process opts (x:xs)      = process (opts { inputs = x:inputs opts }) xs
-    process opts []          = opts
+    process opts ("-o":o:xs) = process (opts {output = o}) xs
+    process opts (x:xs) = process (opts {inputs = x : inputs opts}) xs
+    process opts [] = opts
 
 mainWithOpts :: Opts -> Idris ()
 mainWithOpts opts = do
@@ -41,7 +43,5 @@ main :: IO ()
 main = do
   opts <- getOpts
   if null (inputs opts)
-      then showUsage
-      else runMain (mainWithOpts opts)
-
-
+    then showUsage
+    else runMain (mainWithOpts opts)

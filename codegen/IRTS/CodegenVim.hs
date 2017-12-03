@@ -31,9 +31,9 @@ type Gen a = Reader (HashMap Vim.Name Vim.ScopedName) a
 vimName :: Idris.Name -> Vim.Name
 vimName n = Vim.Name (T.pack ("Idris_" <> foldMap vimChar (showCG n)))
   where
-  vimChar x
-    | isAlpha x || isDigit x = [x]
-    | otherwise = zEncode x
+    vimChar x
+      | isAlpha x || isDigit x = [x]
+      | otherwise = zEncode x
 
 lookupName :: Vim.Name -> Gen Vim.ScopedName
 lookupName n = do
@@ -235,35 +235,48 @@ genForeign ret (FCon name) params =
     ("VIM_ListConcat", [l1, l2]) -> do
       stmt <- ret (Vim.BinOpApply Vim.Add l1 l2)
       pure [stmt]
-    (other, p) -> error ("Foreign function not supported: " ++ other ++ " " ++ show p)
+    (other, p) ->
+      error ("Foreign function not supported: " ++ other ++ " " ++ show p)
 genForeign ret (FApp (showCG -> "VIM_BuiltIn") [FStr name]) params = do
   stmt <- ret (Vim.Apply (Vim.Ref (Vim.builtIn (T.pack name))) params)
   pure [stmt]
 genForeign ret (FApp (showCG -> "VIM_Get") fs) params =
   case fs of
     [FCon (showCG -> con), FStr name] -> do
-      stmt <- ret (Vim.Ref (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))))
+      stmt <-
+        ret (Vim.Ref (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))))
       pure [stmt]
-    _ -> 
-      error ("VIM_Get: " ++ show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
+    _ ->
+      error
+        ("VIM_Get: " ++
+         show fs ++
+         " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ (FApp (showCG -> "VIM_Set") fs) params =
   case (fs, params) of
     ([FCon (showCG -> con), FStr name], [rhs]) -> do
-      stmt <- pure (Vim.Let (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))) rhs)
+      stmt <-
+        pure
+          (Vim.Let
+             (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name)))
+             rhs)
       pure [stmt]
-    _ | length params > 1 -> error "Too many RHS terms!"
+    _
+      | length params > 1 -> error "Too many RHS terms!"
     _ ->
-      error (show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
+      error
+        (show fs ++
+         " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
 
 fromFFICon :: String -> Vim.NameScope
-fromFFICon = \case
-  "VIM_Option" -> Vim.Option
-  "VIM_LocalOption" -> Vim.LocalOption
-  "VIM_GlobalOption" -> Vim.GlobalOption
-  "VIM_Argument" -> Vim.Argument
-  "VIM_Register" -> Vim.Register
-  x -> error ("Ilegal FFI mutable variable type " ++ show x)
+fromFFICon =
+  \case
+    "VIM_Option" -> Vim.Option
+    "VIM_LocalOption" -> Vim.LocalOption
+    "VIM_GlobalOption" -> Vim.GlobalOption
+    "VIM_Argument" -> Vim.Argument
+    "VIM_Register" -> Vim.Register
+    x -> error ("Ilegal FFI mutable variable type " ++ show x)
 
 -- | Implement a @PrimFn@ in terms of Vim primitives.
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
@@ -276,27 +289,30 @@ genPrimFn (LExternal n) params =
   pure (Vim.applyBuiltIn (T.pack (showCG n)) params)
 genPrimFn LReadStr _ =
   error "Cannot read strings using the idris-vimscript-backend!"
-
-genPrimFn unaryPrimFn [x] = pure $ case unaryPrimFn of
-  LStrRev ->
+genPrimFn unaryPrimFn [x] =
+  pure $
+  case unaryPrimFn of
+    LStrRev ->
       Vim.applyBuiltIn
-         "join"
-         [ Vim.applyBuiltIn
-             "reverse"
-             [Vim.applyBuiltIn "split" [x, Vim.stringExpr ".\\zs"]]
-         , Vim.stringExpr ""
-         ]
-  LStrLen -> Vim.applyBuiltIn "len" [x]
-  LStrHead -> Vim.Proj x (Vim.ProjSingle (Vim.intExpr (0 :: Int)))
-  LStrTail -> Vim.Proj x (Vim.ProjFrom (Vim.intExpr (0 :: Int)))
-  LIntStr{} -> Vim.BinOpApply Vim.Concat x (Vim.stringExpr "")
-  LStrInt{} -> Vim.applyBuiltIn "str2nr" [x]
-  LChInt{} -> Vim.applyBuiltIn "char2nr" [x]
-  LIntCh{} -> Vim.applyBuiltIn "nr2char" [x]
-  LSExt{} -> x
-  LTrunc{} -> x
-  LZExt{} -> x
-  _ -> error $ "Unary primitive function " ++ show unaryPrimFn ++ " " ++ show [x] ++ " not implemented!"
-
+        "join"
+        [ Vim.applyBuiltIn
+            "reverse"
+            [Vim.applyBuiltIn "split" [x, Vim.stringExpr ".\\zs"]]
+        , Vim.stringExpr ""
+        ]
+    LStrLen -> Vim.applyBuiltIn "len" [x]
+    LStrHead -> Vim.Proj x (Vim.ProjSingle (Vim.intExpr (0 :: Int)))
+    LStrTail -> Vim.Proj x (Vim.ProjFrom (Vim.intExpr (0 :: Int)))
+    LIntStr {} -> Vim.BinOpApply Vim.Concat x (Vim.stringExpr "")
+    LStrInt {} -> Vim.applyBuiltIn "str2nr" [x]
+    LChInt {} -> Vim.applyBuiltIn "char2nr" [x]
+    LIntCh {} -> Vim.applyBuiltIn "nr2char" [x]
+    LSExt {} -> x
+    LTrunc {} -> x
+    LZExt {} -> x
+    _ ->
+      error $
+      "Unary primitive function " ++
+      show unaryPrimFn ++ " " ++ show [x] ++ " not implemented!"
 genPrimFn f exps =
   error $ "PrimFn " ++ show f ++ " " ++ show exps ++ " not implemented!"
