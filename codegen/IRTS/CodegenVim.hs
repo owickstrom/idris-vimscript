@@ -20,6 +20,7 @@ import           IRTS.Simplified
 import           Text.PrettyPrint.Mainland (pretty)
 import qualified Vimscript.AST             as Vim
 import qualified Vimscript.Render          as Vim
+import IRTS.CodegenVim.Internal.ZEncoding
 
 codegenVim :: CodeGenerator
 codegenVim ci = do
@@ -34,55 +35,7 @@ vimName n = Vim.Name (T.pack ("Idris_" <> foldMap vimChar (showCG n)))
   where
   vimChar x
     | isAlpha x || isDigit x = [x]
-    | otherwise = encode_digit_ch x
-
-  unencodedChar :: Char -> Bool   -- True for chars that don't need encoding
-  unencodedChar 'Z' = False
-  unencodedChar 'z' = False
-  unencodedChar c   =  c >= 'a' && c <= 'z'
-                    || c >= 'A' && c <= 'Z'
-                    || c >= '0' && c <= '9'
-
-  encode_digit_ch :: Char -> String
-  encode_digit_ch c | c >= '0' && c <= '9' = encode_as_unicode_char c
-  encode_digit_ch c | otherwise            = encode_ch c
-
-  encode_ch :: Char -> String
-  encode_ch c | unencodedChar c = [c]
-  -- encode_ch '('  = "ZL"   
-  -- encode_ch ')'  = "ZR"   
-  -- encode_ch '['  = "ZM"
-  -- encode_ch ']'  = "ZN"
-  encode_ch ':'  = "ZC"
-  encode_ch 'Z'  = "ZZ"
-  encode_ch 'z'  = "zz"
-  encode_ch '&'  = "za"
-  encode_ch '|'  = "zb"
-  encode_ch '^'  = "zc"
-  encode_ch '$'  = "zd"
-  encode_ch '='  = "ze"
-  encode_ch '>'  = "zg"
-  encode_ch '#'  = "zh"
-  encode_ch '.'  = "zi"
-  encode_ch '<'  = "zl"
-  encode_ch '-'  = "zm"
-  encode_ch '!'  = "zn"
-  encode_ch '+'  = "zp"
-  encode_ch '\'' = "zq"
-  encode_ch '\\' = "zr"
-  encode_ch '/'  = "zs"
-  encode_ch '*'  = "zt"
-  encode_ch '_'  = "zu"
-  encode_ch '%'  = "zv"
-  encode_ch c    = encode_as_unicode_char c
-
-  encode_as_unicode_char :: Char -> String
-  encode_as_unicode_char c = 'z' : if isDigit (head hex_str) then hex_str
-                                                             else '0':hex_str
-    where hex_str = showHex (ord c) "U"
-    -- ToDo: we could improve the encoding here in various ways.
-    -- eg. strings of unicode characters come out as 'z1234Uz5678U', we
-    -- could remove the 'U' in the middle (the 'z' works as a separator).
+    | otherwise = zEncode x
 
 lookupName :: Vim.Name -> Gen Vim.ScopedName
 lookupName n = do
