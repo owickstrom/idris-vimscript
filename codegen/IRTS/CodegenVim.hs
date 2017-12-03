@@ -295,6 +295,14 @@ genForeign ret (FApp (showCG -> "VIM_GetOption") fs) _ =
       pure [stmt]
     _ -> do
       error (show fs ++ " not sufficiently reduced! Use a %inline.")
+genForeign ret (FApp (showCG -> "VIM_SetOption") fs) params = 
+  case (fs, params) of
+    ([FStr name], [rhs]) -> do
+      stmt <- pure (Vim.Let (Vim.ScopedName Vim.Option (Vim.Name (T.pack name))) rhs)
+      pure [stmt]
+    _ | length params > 1 -> error "Too many RHS terms!"
+    _ -> do
+      error (show fs ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
 
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr

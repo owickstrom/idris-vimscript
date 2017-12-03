@@ -5,6 +5,12 @@ import Vimscript.List
 
 %access export
 
+-- Note [Inline FStr]
+--
+-- This function *must* be given a %inline annotation, otherwise the
+-- `name` is not reduced sufficiently during compilation and remains
+-- an FCon instead of becoming an FStr.
+
 %inline
 builtin : String -> (ty : Type) -> {auto fty : FTy FFI_VIM [] ty} -> ty
 builtin name = 
@@ -12,15 +18,23 @@ builtin name =
 
 ||| Read the value of a Vim option with unspecified scope (`&foo`).
 |||
-||| This function *must* be given a %inline annotation, otherwise the
-||| `name` is not reduced sufficiently during compilation and remains
-||| an FCon instead of becoming an FStr.
+||| Implementation note: see Note [Inline FStr].
 |||
 ||| @ name (case-sensitive)
 %inline
 readOption : (name : String) -> VIM_IO String
 readOption name = 
   foreign FFI_VIM (VIM_GetOption name) (VIM_IO String)
+
+||| Write the value of a Vim option with unspecified scope (`&foo`).
+|||
+||| Implementation note: see Note [Inline FStr].
+|||
+||| @ name (case-sensitive)
+%inline
+writeOption : (name : String) -> (x : t) -> VIM_IO ()
+writeOption {t} name x = 
+  foreign FFI_VIM (VIM_SetOption name) (Raw t -> VIM_IO ()) (MkRaw x)
 
 ||| Execute a string as Vimscript.
 %inline

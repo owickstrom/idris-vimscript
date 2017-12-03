@@ -39,7 +39,7 @@ notDeadCode useds = \case
 
 refs :: Stmt -> [Name]
 refs = \case
-  LocalLet _ e -> refsExpr e
+  ScopedLet _ _ e -> refsExpr e
   Function s args ss -> concatMap refs ss
   Return e -> refsExpr e
   Call s es -> refsName s ++ concatMap refsExpr es
