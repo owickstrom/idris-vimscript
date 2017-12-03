@@ -25,7 +25,7 @@ before_install:
   -C ~/.local/bin
 - stack --no-terminal setup
 install:
-- stack install hlint idris
+- travis_wait stack install hlint idris
 script:
   # Formatting checks
 - hlint codegen/
