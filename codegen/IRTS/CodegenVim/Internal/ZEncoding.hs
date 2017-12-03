@@ -6,13 +6,13 @@ import Numeric
 isUnencoded :: Char -> Bool   -- True for chars that don't need encoding
 isUnencoded 'Z' = False
 isUnencoded 'z' = False
-isUnencoded c   =  c >= 'a' && c <= 'z'
-                || c >= 'A' && c <= 'Z'
-                || c >= '0' && c <= '9'
+isUnencoded c   =  isAsciiLower c
+                || isAsciiUpper c
+                || isDigit c
 
 zEncode :: Char -> String
-zEncode c | c >= '0' && c <= '9' = encodeUnicode c
-zEncode c | otherwise            = encodeCh c
+zEncode c | isDigit c = encodeUnicode c
+zEncode c = encodeCh c
 
 encodeCh :: Char -> String
 encodeCh c | isUnencoded c = [c]

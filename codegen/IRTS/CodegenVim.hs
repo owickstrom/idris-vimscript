@@ -244,7 +244,7 @@ genForeign ret (FApp (showCG -> "VIM_Get") fs) params =
     [FCon (showCG -> con), FStr name] -> do
       stmt <- ret (Vim.Ref (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))))
       pure [stmt]
-    _ -> do
+    _ -> 
       error ("VIM_Get: " ++ show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ (FApp (showCG -> "VIM_Set") fs) params =
   case (fs, params) of
@@ -252,7 +252,7 @@ genForeign _ (FApp (showCG -> "VIM_Set") fs) params =
       stmt <- pure (Vim.Let (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))) rhs)
       pure [stmt]
     _ | length params > 1 -> error "Too many RHS terms!"
-    _ -> do
+    _ ->
       error (show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
 genForeign _ f _ = error ("Foreign function not supported: " ++ show f)
 
