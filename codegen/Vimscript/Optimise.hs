@@ -6,16 +6,11 @@
 
 module Vimscript.Optimise where
 
-import           Data.Data                   (Data, Typeable)
 import           Data.Generics.Uniplate.Data
-import           Data.Hashable
 import           Data.Map                    (Map)
 import qualified Data.Map                    as M
 import           Data.Monoid
-import           Data.String
-import           Data.Text                   (Text)
 import qualified Data.Text                   as T
-import           GHC.Generics
 import           Vimscript.AST
 
 transforms :: Program -> Program
@@ -40,13 +35,17 @@ notDeadCode useds = \case
 
 refs :: Stmt -> [Name]
 refs = \case
-  ScopedLet _ _ e -> refsExpr e
-  Function s args ss -> concatMap refs ss
+  Let _ e -> refsExpr e
+  Function _ _ ss -> concatMap refs ss
   Return e -> refsExpr e
   Call s es -> refsName s ++ concatMap refsExpr es
   Assign _ e -> refsExpr e
   BuiltInStmt _ e -> refsExpr e
+  While e bl -> refsExpr e ++ concatMap refs bl
   Cond cond -> refsCond cond
+  Break -> []
+  Continue -> []
+  LineComment{} -> []
 
 refsCond :: CondStmt -> [Name]
 refsCond (CondStmt e alts bl)
@@ -101,6 +100,7 @@ insertHeader :: Program -> Program
 insertHeader (Program ss) = Program (c:ss)
   where c = LineComment (T.pack "Generated from Idris")
 
+isEmptyCase :: CondStmt -> Bool
 isEmptyCase = \case
   CondStmt _ [] _ -> True
   _ -> False
@@ -109,26 +109,30 @@ inlineLocalPrims :: Program -> Program
 inlineLocalPrims (Program bl) = Program (inlineLocalPrims' M.empty bl)
 
 inlineLocalPrims' :: Map Name Expr -> Block -> Block
--- Destructive updates happen, so only inlineLocal until the
+-- Destructive updates happen, so only inline until the
 -- next binding, if any.
-inlineLocalPrims' kn b@(s:ss) = if remove s then rest else s':rest
+inlineLocalPrims' kn (s:ss) = if remove s then rest else s':rest
   where
   remove = \case
     LocalLet _ e | inlinable e -> True
     _ -> False
   rest = inlineLocalPrims' kn' ss
   kn' = case s of
-    LocalLet n e -> let kn' = M.delete n kn in
-               if inlinable e then M.insert n e kn' else kn'
+    LocalLet n e -> let kn'' = M.delete n kn in
+               if inlinable e then M.insert n e kn'' else kn''
     _ -> kn
   s' = case s of
-    Function s args ss -> Function s args (inlineLocalPrims' kn ss)
-    Return e           -> Return (inlineLocalPrimsExpr kn e)
-    Call s es          -> Call s (map (inlineLocalPrimsExpr kn) es)
-    BuiltInStmt n e    -> BuiltInStmt n (inlineLocalPrimsExpr kn e)
-    Cond c             -> Cond (inlineLocalPrimsCond kn c)
-    LocalLet n e       -> LocalLet n (inlineLocalPrimsExpr kn e)
-    Assign{}           -> error "assign"
+    Function sn args bl -> Function sn args (inlineLocalPrims' kn bl)
+    Return e            -> Return (inlineLocalPrimsExpr kn e)
+    Call fn es          -> Call fn (map (inlineLocalPrimsExpr kn) es)
+    BuiltInStmt n e     -> BuiltInStmt n (inlineLocalPrimsExpr kn e)
+    Cond c              -> Cond (inlineLocalPrimsCond kn c)
+    Let n e             -> Let n (inlineLocalPrimsExpr kn e)
+    While e bl          -> While (inlineLocalPrimsExpr kn e) (inlineLocalPrims' kn bl)
+    Break               -> s
+    Continue            -> s
+    LineComment{}       -> s
+    Assign{}            -> error "assign"
 inlineLocalPrims' _ [] = []
 
 inlineLocalPrimsCond :: Map Name Expr -> CondStmt -> CondStmt
@@ -177,7 +181,7 @@ tco' x = case x of
 isRecursiveFn :: Stmt -> Bool
 isRecursiveFn = \case
   -- we're only checking for recursiveness!
-  f@(Function n _ bl) | n `elem` universeBi bl -> True
+  Function n _ bl | n `elem` universeBi bl -> True
   _ -> False
 
 tcoFunc :: Stmt -> Block
@@ -185,7 +189,7 @@ tcoFunc fn@(Function n as bl) = [Function n as bl'']
  where
     bl' = tcoBlock n as bl
     loopedBl = [While (Prim (Integer 1)) (bl' ++ [Break])]
-    localCopy = zipWith (\n n' -> LocalLet n (Ref (ScopedName Argument n'))) as as
+    localCopy = zipWith (\x y -> LocalLet x (Ref (ScopedName Argument y))) as as
     bl'' = if isRecursiveFn fn then localCopy ++ argumentToLocal loopedBl else bl'
 tcoFunc _ = error "unreachable: tcoFunc"
 
@@ -200,7 +204,7 @@ tcoBlock n as bl = bl'
   bl' = concatMap (tcoStmt n as) bl
 
 tcoStmt :: ScopedName -> [Name] -> Stmt -> Block
-tcoStmt n as s = case s of
+tcoStmt n as = \case
   Return (Apply (Ref sn) args) | sn == n -> adjust
     where
       adjust = zipWith LocalLet as args ++ [Continue]

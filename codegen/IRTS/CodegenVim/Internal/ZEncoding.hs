@@ -42,7 +42,7 @@ encodeCh c = case c of
   '*' -> "zt" -- Times
   '_' -> "zu" -- Underscore
   '%' -> "zv"
-  c -> encodeUnicode c
+  _ -> encodeUnicode c
 
 encodeUnicode :: Char -> String
 encodeUnicode c = 'z' : if isDigit (head hexStr) then hexStr

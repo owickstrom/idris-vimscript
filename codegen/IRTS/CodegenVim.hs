@@ -16,7 +16,6 @@ import           IRTS.CodegenCommon
 import           IRTS.CodegenVim.Internal.ZEncoding
 import           IRTS.Lang
 import           IRTS.Simplified
-import           Numeric
 import           Text.PrettyPrint.Mainland          (pretty)
 import qualified Vimscript.AST                      as Vim
 import qualified Vimscript.Render                   as Vim
@@ -247,7 +246,7 @@ genForeign ret (FApp (showCG -> "VIM_Get") fs) params =
       pure [stmt]
     _ -> do
       error ("VIM_Get: " ++ show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
-genForeign ret (FApp (showCG -> "VIM_Set") fs) params =
+genForeign _ (FApp (showCG -> "VIM_Set") fs) params =
   case (fs, params) of
     ([FCon (showCG -> con), FStr name], [rhs]) -> do
       stmt <- pure (Vim.Let (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))) rhs)

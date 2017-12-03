@@ -7,15 +7,10 @@
 
 module Vimscript.AST where
 
-import           Data.Data                   (Data, Typeable)
-import           Data.Generics.Uniplate.Data
+import           Data.Data     (Data, Typeable)
 import           Data.Hashable
-import           Data.Map                    (Map)
-import qualified Data.Map                    as M
-import           Data.Monoid
 import           Data.String
-import           Data.Text                   (Text)
-import qualified Data.Text                   as T
+import           Data.Text     (Text)
 import           GHC.Generics
 
 data NameScope
