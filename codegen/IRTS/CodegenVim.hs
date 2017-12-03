@@ -6,20 +6,20 @@ module IRTS.CodegenVim where
 
 import           Control.Monad.Reader
 import           Data.Char
-import Numeric
-import           Data.HashMap.Strict       (HashMap)
-import qualified Data.HashMap.Strict       as HM
+import           Data.HashMap.Strict                (HashMap)
+import qualified Data.HashMap.Strict                as HM
 import           Data.List
 import           Data.Semigroup
-import qualified Data.Text                 as T
-import           Idris.Core.TT             as Idris
+import qualified Data.Text                          as T
+import           Idris.Core.TT                      as Idris
 import           IRTS.CodegenCommon
+import           IRTS.CodegenVim.Internal.ZEncoding
 import           IRTS.Lang
 import           IRTS.Simplified
-import           Text.PrettyPrint.Mainland (pretty)
-import qualified Vimscript.AST             as Vim
-import qualified Vimscript.Render          as Vim
-import IRTS.CodegenVim.Internal.ZEncoding
+import           Numeric
+import           Text.PrettyPrint.Mainland          (pretty)
+import qualified Vimscript.AST                      as Vim
+import qualified Vimscript.Render                   as Vim
 
 codegenVim :: CodeGenerator
 codegenVim ci = do
@@ -50,7 +50,7 @@ withNewNames :: [Vim.ScopedName] -> Gen a -> Gen a
 withNewNames ns g = foldl' (flip withNewName) g ns
 
 loc :: Int -> Vim.Name
-loc i 
+loc i
   | i <= 26 = Vim.Name (T.singleton (toEnum (i + fromEnum 'a') :: Char))
   | otherwise = Vim.Name ("loc" <> T.pack (show i))
 
@@ -240,14 +240,14 @@ genForeign ret (FCon name) params =
 genForeign ret (FApp (showCG -> "VIM_BuiltIn") [FStr name]) params = do
   stmt <- ret (Vim.Apply (Vim.Ref (Vim.builtIn (T.pack name))) params)
   pure [stmt]
-genForeign ret (FApp (showCG -> "VIM_Get") fs) params = 
+genForeign ret (FApp (showCG -> "VIM_Get") fs) params =
   case fs of
     [FCon (showCG -> con), FStr name] -> do
       stmt <- ret (Vim.Ref (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))))
       pure [stmt]
     _ -> do
       error ("VIM_Get: " ++ show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
-genForeign ret (FApp (showCG -> "VIM_Set") fs) params = 
+genForeign ret (FApp (showCG -> "VIM_Set") fs) params =
   case (fs, params) of
     ([FCon (showCG -> con), FStr name], [rhs]) -> do
       stmt <- pure (Vim.Let (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))) rhs)

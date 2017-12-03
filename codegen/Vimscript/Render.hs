@@ -7,7 +7,7 @@ import           Prelude                   hiding (Ordering (..))
 import           Text.PrettyPrint.Mainland
 
 import           Vimscript.AST
-import           Vimscript.Optimise as Vim
+import           Vimscript.Optimise        as Vim
 
 indentWidth :: Int
 indentWidth = 4
@@ -20,16 +20,16 @@ renderScopedName (ScopedName scope name) = prefix <> renderName name
   where
     prefix =
       case scope of
-        BuiltIn  -> empty
-        Global   -> "g:"
-        Local    -> "l:"
-        Script   -> "s:"
-        Argument -> "a:"
-        Register -> "@"
-        Option -> "&"
-        LocalOption -> "&l:"
+        BuiltIn      -> empty
+        Global       -> "g:"
+        Local        -> "l:"
+        Script       -> "s:"
+        Argument     -> "a:"
+        Register     -> "@"
+        Option       -> "&"
+        LocalOption  -> "&l:"
         GlobalOption -> "&g:"
-        Environment -> "$"
+        Environment  -> "$"
 
 renderBinOp :: BinOp -> Doc
 renderBinOp =

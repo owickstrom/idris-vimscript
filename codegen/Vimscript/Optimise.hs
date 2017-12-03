@@ -1,32 +1,34 @@
-{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, StandaloneDeriving              #-}
-{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 
 module Vimscript.Optimise where
 
-import Data.Monoid
+import           Data.Data                   (Data, Typeable)
+import           Data.Generics.Uniplate.Data
 import           Data.Hashable
+import           Data.Map                    (Map)
+import qualified Data.Map                    as M
+import           Data.Monoid
 import           Data.String
-import Data.Text (Text)
-import qualified Data.Text as T
+import           Data.Text                   (Text)
+import qualified Data.Text                   as T
 import           GHC.Generics
-import qualified Data.Map as M
-import Data.Map (Map)
-import Data.Data (Data, Typeable)
-import Data.Generics.Uniplate.Data
-import Vimscript.AST
+import           Vimscript.AST
 
 transforms :: Program -> Program
-transforms 
-  = insertHeader 
-  . tco 
-  . dce 
-  -- . inlineLocalPrims 
+transforms
+  = insertHeader
+  . tco
+  . dce
+  -- . inlineLocalPrims
   . arityRename
 
 dce :: Program -> Program
 dce (Program es) = Program (filter (notDeadCode usedRefs) es)
-  where 
+  where
     usedRefs = concatMap refs es
 
 notDeadCode :: [Name] -> Stmt -> Bool
@@ -45,11 +47,11 @@ refs = \case
   Assign _ e -> refsExpr e
   BuiltInStmt _ e -> refsExpr e
   Cond cond -> refsCond cond
-  
+
 refsCond :: CondStmt -> [Name]
-refsCond (CondStmt e alts bl) 
-  = refsCondCase e 
-  ++ concatMap refsCondCase alts 
+refsCond (CondStmt e alts bl)
+  = refsCondCase e
+  ++ concatMap refsCondCase alts
   ++ maybe [] (concatMap refs) bl
 
 refsCondCase :: CondCase -> [Name]
@@ -107,7 +109,7 @@ inlineLocalPrims :: Program -> Program
 inlineLocalPrims (Program bl) = Program (inlineLocalPrims' M.empty bl)
 
 inlineLocalPrims' :: Map Name Expr -> Block -> Block
--- Destructive updates happen, so only inlineLocal until the 
+-- Destructive updates happen, so only inlineLocal until the
 -- next binding, if any.
 inlineLocalPrims' kn b@(s:ss) = if remove s then rest else s':rest
   where
@@ -121,27 +123,27 @@ inlineLocalPrims' kn b@(s:ss) = if remove s then rest else s':rest
     _ -> kn
   s' = case s of
     Function s args ss -> Function s args (inlineLocalPrims' kn ss)
-    Return e -> Return (inlineLocalPrimsExpr kn e)
-    Call s es -> Call s (map (inlineLocalPrimsExpr kn) es)
-    BuiltInStmt n e -> BuiltInStmt n (inlineLocalPrimsExpr kn e)
-    Cond c -> Cond (inlineLocalPrimsCond kn c)
-    LocalLet n e -> LocalLet n (inlineLocalPrimsExpr kn e)
-    Assign{} -> error "assign"
+    Return e           -> Return (inlineLocalPrimsExpr kn e)
+    Call s es          -> Call s (map (inlineLocalPrimsExpr kn) es)
+    BuiltInStmt n e    -> BuiltInStmt n (inlineLocalPrimsExpr kn e)
+    Cond c             -> Cond (inlineLocalPrimsCond kn c)
+    LocalLet n e       -> LocalLet n (inlineLocalPrimsExpr kn e)
+    Assign{}           -> error "assign"
 inlineLocalPrims' _ [] = []
 
 inlineLocalPrimsCond :: Map Name Expr -> CondStmt -> CondStmt
-inlineLocalPrimsCond kn (CondStmt c cs bl) 
+inlineLocalPrimsCond kn (CondStmt c cs bl)
   = CondStmt (inlineLocalPrimsCase kn c) (inlineLocalPrimsCase kn <$> cs) (inlineLocalPrims' kn <$> bl)
 
 inlineLocalPrimsCase :: Map Name Expr -> CondCase -> CondCase
-inlineLocalPrimsCase kn (CondCase e bl) 
+inlineLocalPrimsCase kn (CondCase e bl)
   = CondCase (inlineLocalPrimsExpr kn e) (inlineLocalPrims' kn bl)
-  
+
 inlineLocalPrimsExpr :: Map Name Expr -> Expr -> Expr
 inlineLocalPrimsExpr kn expr = case expr of
   Ref (ScopedName Local s) -> case M.lookup s kn of
     Just e -> e
-    _ -> expr
+    _      -> expr
   Ref{} -> expr
   BinOpApply op e f -> BinOpApply op (inlineLocalPrimsExpr kn e) (inlineLocalPrimsExpr kn f)
   Prim p -> Prim (inlineLocalPrimsPrim kn p)
@@ -157,8 +159,8 @@ inlineLocalPrimsProj kn = \case
 
 inlineLocalPrimsPrim :: Map Name Expr -> Primitive -> Primitive
 inlineLocalPrimsPrim kn (List es) = List (map (inlineLocalPrimsExpr kn) es)
-inlineLocalPrimsPrim _ p = p
-  
+inlineLocalPrimsPrim _ p          = p
+
 inlinable :: Expr -> Bool
 -- inlinable Prim{} = True
 -- inlinable (BinOpApply _ e f) = inlinable e && inlinable f
@@ -170,7 +172,7 @@ tco (Program ss) = Program (foldMap tco' ss)
 tco' :: Stmt -> Block
 tco' x = case x of
   Function{} -> tcoFunc x
-  _ -> pure x
+  _          -> pure x
 
 isRecursiveFn :: Stmt -> Bool
 isRecursiveFn = \case
@@ -189,7 +191,7 @@ tcoFunc _ = error "unreachable: tcoFunc"
 
 argumentToLocal :: Block -> Block
 argumentToLocal = transformBi go
-  where 
+  where
     go (ScopedName s n) = ScopedName (if s == Argument then Local else s) n
 
 tcoBlock :: ScopedName -> [Name] -> Block -> Block

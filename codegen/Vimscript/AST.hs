@@ -1,20 +1,22 @@
-{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, StandaloneDeriving              #-}
-{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 
 module Vimscript.AST where
 
-import Data.Monoid
+import           Data.Data                   (Data, Typeable)
+import           Data.Generics.Uniplate.Data
 import           Data.Hashable
+import           Data.Map                    (Map)
+import qualified Data.Map                    as M
+import           Data.Monoid
 import           Data.String
-import Data.Text (Text)
-import qualified Data.Text as T
+import           Data.Text                   (Text)
+import qualified Data.Text                   as T
 import           GHC.Generics
-import qualified Data.Map as M
-import Data.Map (Map)
-import Data.Data (Data, Typeable)
-import Data.Generics.Uniplate.Data
 
 data NameScope
   = BuiltIn
