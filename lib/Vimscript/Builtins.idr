@@ -172,8 +172,8 @@ getcwd : VIM_IO String
 getcwd = builtin "getcwd" (VIM_IO String)
 
 ||| Execute a shell command and discard the output.
-system' : String -> VIM_IO ()
-system' = builtin "system" (String -> VIM_IO ())
+system_ : String -> VIM_IO ()
+system_ = builtin "system" (String -> VIM_IO ())
 
 -- [ Derived operations ] ------------------------------------------------------
 
@@ -293,9 +293,6 @@ d = Delete
 -- m$
 moveEnd : Ex
 moveEnd = Move Nothing Last
-
-check : List (Lazy Bool) -> VIM_IO ()
-check x = echo (if and x then "All tests passed" else "Some tests failed")
 
 public export
 data VimSwitch
