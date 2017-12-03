@@ -13,7 +13,6 @@ import qualified Data.Text as T
 import           GHC.Generics
 import qualified Data.Map as M
 import Data.Map (Map)
-import Debug.Trace
 import Data.Data (Data, Typeable)
 import Data.Generics.Uniplate.Data
 

@@ -12,7 +12,6 @@ import qualified Data.Text as T
 import           GHC.Generics
 import qualified Data.Map as M
 import Data.Map (Map)
-import Debug.Trace
 import Data.Data (Data, Typeable)
 import Data.Generics.Uniplate.Data
 import Vimscript.AST
@@ -124,7 +123,7 @@ inlineLocalPrims' kn b@(s:ss) = if remove s then rest else s':rest
     Function s args ss -> Function s args (inlineLocalPrims' kn ss)
     Return e -> Return (inlineLocalPrimsExpr kn e)
     Call s es -> Call s (map (inlineLocalPrimsExpr kn) es)
-    BuiltInStmt n e | traceShow kn True -> BuiltInStmt n (inlineLocalPrimsExpr kn e)
+    BuiltInStmt n e -> BuiltInStmt n (inlineLocalPrimsExpr kn e)
     Cond c -> Cond (inlineLocalPrimsCond kn c)
     LocalLet n e -> LocalLet n (inlineLocalPrimsExpr kn e)
     Assign{} -> error "assign"
