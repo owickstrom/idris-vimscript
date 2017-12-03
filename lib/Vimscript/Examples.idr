@@ -29,9 +29,17 @@ stripTrailingWhitespace = do
   sub "%" "\\s\\+$" "" "e"
   cursor l c
 
+%inline
+echoStr : String -> VIM_IO ()
+echoStr = echo
+
 main : VIM_IO ()
 main = do
   echo ("Readonly flag is set to " ++ !(readOption "readonly"))
   writeOption "readonly" 1
   echo ("Readonly flag is set to " ++ !(readOption "readonly"))
+  writeRegister "q" "ggVGy"
+
+  echo "Registers:"
+  map concat (traverse (readRegister . singleton) ['a','q']) >>= echoStr
 

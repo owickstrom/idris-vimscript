@@ -33,6 +33,14 @@ data VIM_MutableRef
   | VIM_Register
 
 public export
+VIM_GlobalOption : VIM_MutableRef
+VIM_GlobalOption = VIM_ScopedOption VIM_Global
+
+public export
+VIM_LocalOption : VIM_MutableRef
+VIM_LocalOption = VIM_ScopedOption VIM_Local
+
+public export
 data VIM_Foreign
   = VIM_Echo
   | VIM_ListEmpty

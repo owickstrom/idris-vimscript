@@ -46,6 +46,36 @@ readOption name = readMutableRef VIM_Option name
 writeOption : (name : String) -> (x : t) -> VIM_IO ()
 writeOption name x = writeMutableRef VIM_Option name x
 
+||| Read the value of a Vim option with global scope (`&l:foo`).
+%inline
+readLocalOption : (name : String) -> VIM_IO String
+readLocalOption name = readMutableRef VIM_LocalOption name
+
+||| Write the value of a Vim option with global scope (`&l:foo`).
+%inline
+writeLocalOption : (name : String) -> (x : t) -> VIM_IO ()
+writeLocalOption name x = writeMutableRef VIM_LocalOption name x
+
+||| Read the value of a Vim option with global scope (`&g:foo`).
+%inline
+readGlobalOption : (name : String) -> VIM_IO String
+readGlobalOption name = readMutableRef VIM_GlobalOption name
+
+||| Write the value of a Vim option with global scope (`&g:foo`).
+%inline
+writeGlobalOption : (name : String) -> (x : t) -> VIM_IO ()
+writeGlobalOption name x = writeMutableRef VIM_GlobalOption name x
+
+||| Read the contents of a Vim register.
+%inline
+readRegister : (name : String) -> VIM_IO String
+readRegister name = readMutableRef VIM_Register name
+
+||| Set the contents of a Vim register.
+%inline
+writeRegister : (name : String) -> (x : t) -> VIM_IO ()
+writeRegister name = writeMutableRef VIM_Register name
+
 ||| Execute a string as Vimscript.
 %inline
 execute : String -> VIM_IO ()

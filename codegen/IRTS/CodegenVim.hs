@@ -294,7 +294,7 @@ genForeign ret (FApp (showCG -> "VIM_Get") fs) params =
       stmt <- ret (Vim.Ref (Vim.ScopedName (fromFFICon con) (Vim.Name (T.pack name))))
       pure [stmt]
     _ -> do
-      error (show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
+      error ("VIM_Get: " ++ show fs ++ " " ++ show params ++ " not sufficiently reduced! Use a %inline.")
 genForeign ret (FApp (showCG -> "VIM_Set") fs) params = 
   case (fs, params) of
     ([FCon (showCG -> con), FStr name], [rhs]) -> do
@@ -311,7 +311,8 @@ fromFFICon = \case
   "VIM_LocalOption" -> Vim.LocalOption
   "VIM_GlobalOption" -> Vim.GlobalOption
   "VIM_Argument" -> Vim.Argument
-  _ -> error "unknown FFI mutable variable type"
+  "VIM_Register" -> Vim.Register
+  x -> error ("Ilegal FFI mutable variable type " ++ show x)
 
 -- | Implement a @PrimFn@ in terms of Vim primitives.
 genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
