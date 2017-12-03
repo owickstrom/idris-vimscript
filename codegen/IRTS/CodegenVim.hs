@@ -30,11 +30,11 @@ codegenVim ci = do
 type Gen a = ReaderT (HashMap Vim.Name Vim.ScopedName) IO a
 
 vimName :: Idris.Name -> Vim.Name
-vimName n = Vim.Name ("Idris_" <> foldMap vimChar (showCG n))
+vimName n = Vim.Name (T.pack ("Idris_" <> foldMap vimChar (showCG n)))
   where
   vimChar x
-    | isAlpha x || isDigit x = T.singleton x
-    | otherwise = T.pack (encode_digit_ch x)
+    | isAlpha x || isDigit x = [x]
+    | otherwise = encode_digit_ch x
 
   unencodedChar :: Char -> Bool   -- True for chars that don't need encoding
   unencodedChar 'Z' = False
@@ -43,16 +43,14 @@ vimName n = Vim.Name ("Idris_" <> foldMap vimChar (showCG n))
                     || c >= 'A' && c <= 'Z'
                     || c >= '0' && c <= '9'
 
-  -- If a digit is at the start of a symbol then we need to encode it.
-  -- Otherwise package names like 9pH-0.1 give linker errors.
   encode_digit_ch :: Char -> String
   encode_digit_ch c | c >= '0' && c <= '9' = encode_as_unicode_char c
   encode_digit_ch c | otherwise            = encode_ch c
 
   encode_ch :: Char -> String
-  encode_ch c | unencodedChar c = [c]     -- Common case first
-  -- encode_ch '('  = "ZL"   -- Needed for things like (,), and (->)
-  -- encode_ch ')'  = "ZR"   -- For symmetry with (
+  encode_ch c | unencodedChar c = [c]
+  -- encode_ch '('  = "ZL"   
+  -- encode_ch ')'  = "ZR"   
   -- encode_ch '['  = "ZM"
   -- encode_ch ']'  = "ZN"
   encode_ch ':'  = "ZC"
