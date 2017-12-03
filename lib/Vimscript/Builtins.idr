@@ -7,6 +7,9 @@ import Vimscript.List
 
 -- Note [Inline FStr]
 --
+-- For all functions operating on Vim mutable references, a %inline
+-- annotation is a must:
+--
 -- This function *must* be given a %inline annotation, otherwise the
 -- `name` is not reduced sufficiently during compilation and remains
 -- an FCon instead of becoming an FStr.
@@ -16,25 +19,26 @@ builtin : String -> (ty : Type) -> {auto fty : FTy FFI_VIM [] ty} -> ty
 builtin name = 
   foreign FFI_VIM (VIM_BuiltIn name)
 
-||| Read the value of a Vim option with unspecified scope (`&foo`).
-|||
-||| Implementation note: see Note [Inline FStr].
-|||
-||| @ name (case-sensitive)
+||| Read the value of a Vim mutable reference with unspecified scope (`&foo`).
+%inline
+readMutableRef : (ref : VIM_MutableRef) -> (name : String) -> VIM_IO String
+readMutableRef ref name = 
+  foreign FFI_VIM (VIM_Get ref name) (VIM_IO String)
+
+||| Write the value of a Vim mutable reference with unspecified scope (`&foo`).
+%inline
+writeMutableRef : (ref : VIM_MutableRef) -> (name : String) -> (x : t) -> VIM_IO ()
+writeMutableRef {t} ref name x = 
+  foreign FFI_VIM (VIM_Set ref name) (Raw t -> VIM_IO ()) (MkRaw x)
+ 
+||| Write the value of a Vim option with unspecified scope (`&foo`).
 %inline
 readOption : (name : String) -> VIM_IO String
-readOption name = 
-  foreign FFI_VIM (VIM_Get VIM_Option name) (VIM_IO String)
+readOption name = readMutableRef VIM_Option name
 
-||| Write the value of a Vim option with unspecified scope (`&foo`).
-|||
-||| Implementation note: see Note [Inline FStr].
-|||
-||| @ name (case-sensitive)
 %inline
-writeOption : (name : String) -> (x : t) -> VIM_IO ()
-writeOption {t} name x = 
-  foreign FFI_VIM (VIM_Set VIM_Option name) (Raw t -> VIM_IO ()) (MkRaw x)
+writeOption : {t : Type} -> (name : String) -> (x : t) -> VIM_IO ()
+writeOption name x = writeMutableRef VIM_Option name x
 
 ||| Execute a string as Vimscript.
 %inline
