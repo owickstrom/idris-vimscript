@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check that the existing formatting of Haskell sources matches the one of
 # hindent and stylish-haskell combined (in that order).
