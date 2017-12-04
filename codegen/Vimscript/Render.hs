@@ -117,6 +117,4 @@ renderBlock :: Block -> Doc
 renderBlock = stack . map renderStmt
 
 renderProgram :: Program -> Doc
-renderProgram prog = stack (map renderStmt stmts)
-  where
-    Program stmts = Vim.transforms prog
+renderProgram (Program stmts) = stack (map renderStmt stmts)

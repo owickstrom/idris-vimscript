@@ -24,7 +24,7 @@ import qualified Vimscript.Render                   as Vim
 codegenVim :: CodeGenerator
 codegenVim ci = do
   let decls = simpleDecls ci
-  let prg = Optimise.transforms (runReader (genProgram decls) HM.empty)
+  let prg = Optimise.performTransforms (runReader (genProgram decls) HM.empty)
   writeFile (outputFile ci) (pretty 200 (Vim.renderProgram prg))
 
 type Gen a = Reader (HashMap Vim.Name Vim.ScopedName) a
