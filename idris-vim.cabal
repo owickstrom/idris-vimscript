@@ -28,4 +28,5 @@ Executable idris-codegen-vim
                     Vimscript.AST
                     Vimscript.Render
                     Vimscript.Optimise
+                    IRTS.CodegenVim.Internal.ZEncoding
   ghc-options:      -threaded -Wall
