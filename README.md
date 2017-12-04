@@ -1,4 +1,4 @@
-# Idris in Vimscript!
+# Idris Vimscript!
 
 [![](https://img.shields.io/github/issues/badges/shields/good%20first%20issue.svg?colorB=05c62c)](https://github.com/owickstrom/idris-vimscript/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
