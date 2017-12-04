@@ -7,7 +7,6 @@ import           Prelude                   hiding (Ordering (..))
 import           Text.PrettyPrint.Mainland
 
 import           Vimscript.AST
-import           Vimscript.Optimise        as Vim
 
 indentWidth :: Int
 indentWidth = 4
