@@ -3,7 +3,8 @@ module Vimscript.Builtins
 import Vimscript.FFI
 import Vimscript.List
 
-%access export
+%access public export
+%default total
 
 -- Note [Inline FStr]
 --
@@ -21,21 +22,21 @@ echo {t} v = foreign FFI_VIM VIM_Echo (Raw t -> VIM_IO ()) (MkRaw v)
 ||| Call a Vim builtin.
 %inline
 builtin : String -> (ty : Type) -> {auto fty : FTy FFI_VIM [] ty} -> ty
-builtin name = 
+builtin name =
   foreign FFI_VIM (VIM_BuiltIn name)
 
 ||| Read the value of a Vim mutable reference.
 %inline
 readMutableRef : (ref : VIM_MutableRef) -> (name : String) -> VIM_IO String
-readMutableRef ref name = 
+readMutableRef ref name =
   foreign FFI_VIM (VIM_Get ref name) (VIM_IO String)
 
 ||| Write the value of a Vim mutable reference.
 %inline
 writeMutableRef : (ref : VIM_MutableRef) -> (name : String) -> (x : t) -> VIM_IO ()
-writeMutableRef {t} ref name x = 
+writeMutableRef {t} ref name x =
   foreign FFI_VIM (VIM_Set ref name) (Raw t -> VIM_IO ()) (MkRaw x)
- 
+
 ||| Read the value of a Vim option with unspecified scope (`&foo`).
 %inline
 readOption : (name : String) -> VIM_IO String
@@ -264,6 +265,7 @@ ppEx (Write f)
 ppEx (Global re a) = "g/" ++ re ++ "/" ++ ppEx a
 ppEx (VGlobal re a) = "v/" ++ re ++ "/" ++ ppEx a
 ppEx (Move r l) = ppRange r ++ "m" ++ ppLine l
+ppEx Undo = "u"
 
 exec : Ex -> VIM_IO ()
 exec = execute . ppEx
@@ -306,9 +308,16 @@ data VimSwitch
   | VisualBell
 
 ppSwitch : VimSwitch -> String
-ppSwitch vs = case vs of
-  Compatible => "compatible"
-  No o => "no" ++ ppSwitch o
+ppSwitch vs =
+  case vs of
+       Compatible     => "compatible"
+       No o           => "no" ++ ppSwitch o
+       ExpandTab      => "expandtab"
+       Hidden         => "hidden"
+       Wildmenu       => "wildmenu"
+       RelativeNumber => "relativenumber"
+       UndoFile       => "undofile"
+       VisualBell     => "visualbell"
 
 enable : VimSwitch -> VIM_IO ()
 enable s = execute ("set" ++ " " ++ ppSwitch s)
@@ -316,27 +325,47 @@ enable s = execute ("set" ++ " " ++ ppSwitch s)
 disable : VimSwitch -> VIM_IO ()
 disable s = enable (No s)
 
-public export
 data Power = On | Off
 
-total
+private
 ppPower : Power -> String
 ppPower p = case p of
                  On => "on"
                  Off => "off"
 
-public export
 data VimEncoding = UTF8
 
-public export
+private
+ppVimEncoding : VimEncoding -> String
+ppVimEncoding e =
+  case e of
+       UTF8 => "utf8"
+
+data VimBackground = Light | Dark
+
+private
+ppVimBackground : VimBackground -> String
+ppVimBackground bg =
+  case bg of
+       Light => "light"
+       Dark => "dark"
+
 data VimOption
   = Syntax Power
   | TabStop Int
   | SoftTabStop Int
   | ShiftWidth Int
   | Encoding VimEncoding
+  | Background VimBackground
 
 set : VimOption -> VIM_IO ()
-set (Syntax p) = unsafeSetUnary "syntax" (ppPower p)
+set opt =
+  case opt of
+       Syntax p => unsafeSetUnary "syntax" (ppPower p)
+       TabStop n => unsafeSetUnary "tabstop" (show n)
+       SoftTabStop n => unsafeSetUnary "softtabstop" (show n)
+       ShiftWidth n => unsafeSetUnary "shiftwidth" (show n)
+       Encoding e => unsafeSetUnary "encoding" (ppVimEncoding e)
+       Background bg => unsafeSetUnary "background" (ppVimBackground bg)
 
 

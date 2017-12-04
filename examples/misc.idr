@@ -2,7 +2,7 @@ module Main
 
 import Vimscript.FFI
 import Vimscript.List
-import Vimscript.Builtin
+import Vimscript.Builtins
 
 printWith : (String -> VIM_IO ()) -> String -> VIM_IO ()
 printWith f s =
@@ -29,7 +29,7 @@ main = do
   -- THINGS YOU CAN DO:
 
   -- Weird shit like this:
-  set "background" "dark"
+  set (Background Dark)
 
   -- Or even more scary:
   execute "echo 'Any Vim code!'"

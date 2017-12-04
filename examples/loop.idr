@@ -1,7 +1,7 @@
 module Main
 
 import Vimscript.FFI
-import Vimscript.Builtin
+import Vimscript.Builtins
 
 loop : Int -> VIM_IO ()
 loop 0 = pure ()
