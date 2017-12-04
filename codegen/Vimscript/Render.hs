@@ -84,9 +84,7 @@ renderAssignTarget =
 renderStmt :: Stmt -> Doc
 renderStmt =
   \case
-    Let sn expr ->
-      "let" <+>
-      renderScopedName sn <+> "=" <+> renderExpr expr
+    Let sn expr -> "let" <+> renderScopedName sn <+> "=" <+> renderExpr expr
     Return expr -> "return" <+> renderExpr expr
     Function scopedName args block ->
       "function!" <+>
@@ -96,7 +94,9 @@ renderStmt =
       "endfunction"
     Break -> "break"
     Continue -> "continue"
-    While expr bl -> "while" <+> renderExpr expr </> indent indentWidth (renderBlock bl) </> "endwhile"
+    While expr bl ->
+      "while" <+>
+      renderExpr expr </> indent indentWidth (renderBlock bl) </> "endwhile"
     Call name params ->
       "call" <+>
       renderScopedName name <> commaSepIn lparen rparen (map renderExpr params)
@@ -118,4 +118,5 @@ renderBlock = stack . map renderStmt
 
 renderProgram :: Program -> Doc
 renderProgram prog = stack (map renderStmt stmts)
-  where Program stmts = Vim.transforms prog
+  where
+    Program stmts = Vim.transforms prog

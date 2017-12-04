@@ -18,12 +18,13 @@ import           IRTS.Lang
 import           IRTS.Simplified
 import           Text.PrettyPrint.Mainland          (pretty)
 import qualified Vimscript.AST                      as Vim
+import qualified Vimscript.Optimise                 as Optimise
 import qualified Vimscript.Render                   as Vim
 
 codegenVim :: CodeGenerator
 codegenVim ci = do
   let decls = simpleDecls ci
-  let prg = runReader (genProgram decls) HM.empty
+  let prg = Optimise.transforms (runReader (genProgram decls) HM.empty)
   writeFile (outputFile ci) (pretty 200 (Vim.renderProgram prg))
 
 type Gen a = Reader (HashMap Vim.Name Vim.ScopedName) a

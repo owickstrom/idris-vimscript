@@ -118,7 +118,8 @@ data Stmt
         Expr
   | Return Expr
   | LineComment Text
-  | While Expr Block
+  | While Expr
+          Block
   | Break
   | Continue
   | Function ScopedName
@@ -134,15 +135,17 @@ data Stmt
   deriving (Eq, Show, Data, Typeable)
 
 pattern LocalLet :: Name -> Expr -> Stmt
+
 pattern LocalLet n e = Let (ScopedName Local n) e
 
 pattern ArgLet :: Name -> Expr -> Stmt
+
 pattern ArgLet n e = Let (ScopedName Argument n) e
 
 pattern ScopedLet :: NameScope -> Name -> Expr -> Stmt
+
 pattern ScopedLet s n e = Let (ScopedName s n) e
 
 newtype Program =
   Program [Stmt]
   deriving (Eq, Show, Data, Typeable)
-
