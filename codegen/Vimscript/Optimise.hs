@@ -8,72 +8,10 @@ import           Data.Generics.Uniplate.Data
 import           Data.Monoid
 import qualified Data.Text                   as T
 import           Vimscript.AST
+import qualified Vimscript.Optimise.DCE      as DCE
 
 transforms :: Program -> Program
-transforms = insertHeader . tco . dce . arityRename
-
-dce :: Program -> Program
-dce (Program es) = Program (filter (notDeadCode usedRefs) es)
-  where
-    usedRefs = concatMap refs es
-
-notDeadCode :: [Name] -> Stmt -> Bool
-notDeadCode useds =
-  \case
-    Function (ScopedName Script n) _ _ -> n `elem` useds
-    _ -> True
-
--- TODO use something better than [Name]
-refs :: Stmt -> [Name]
-refs =
-  \case
-    Let _ e -> refsExpr e
-    Function _ _ ss -> concatMap refs ss
-    Return e -> refsExpr e
-    Call s es -> refsName s ++ concatMap refsExpr es
-    Assign _ e -> refsExpr e
-    BuiltInStmt _ e -> refsExpr e
-    While e bl -> refsExpr e ++ concatMap refs bl
-    Cond cond -> refsCond cond
-    Break -> []
-    Continue -> []
-    LineComment {} -> []
-
-refsCond :: CondStmt -> [Name]
-refsCond (CondStmt e alts bl) =
-  refsCondCase e ++ concatMap refsCondCase alts ++ maybe [] (concatMap refs) bl
-
-refsCondCase :: CondCase -> [Name]
-refsCondCase (CondCase e bl) = refsExpr e ++ concatMap refs bl
-
-refsExpr :: Expr -> [Name]
-refsExpr =
-  \case
-    BinOpApply _ e f -> refsExpr e ++ refsExpr f
-    Ref s -> refsName s
-    Apply e es -> refsExpr e ++ concatMap refsExpr es
-    Proj e pr -> refsExpr e ++ refsProj pr
-    Prim p -> refsPrim p
-
-refsPrim :: Primitive -> [Name]
-refsPrim =
-  \case
-    List es -> concatMap refsExpr es
-    _ -> []
-
-refsProj :: Projection -> [Name]
-refsProj =
-  \case
-    ProjSingle e -> refsExpr e
-    ProjFrom e -> refsExpr e
-    ProjTo e -> refsExpr e
-    ProjBoth e f -> refsExpr e ++ refsExpr f
-
-refsName :: ScopedName -> [Name]
-refsName =
-  \case
-    ScopedName Script n -> [n]
-    _ -> []
+transforms = insertHeader . tco . DCE.runPass . arityRename
 
 arityRename :: Program -> Program
 arityRename (Program ss) = Program ss'
