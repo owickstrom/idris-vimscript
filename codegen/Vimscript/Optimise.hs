@@ -2,7 +2,6 @@ module Vimscript.Optimise
   ( performTransforms
   ) where
 
-import qualified Data.Text                   as T
 import           Vimscript.AST
 import qualified Vimscript.Optimise.Annotate as Annotate
 import qualified Vimscript.Optimise.DCE      as DCE
