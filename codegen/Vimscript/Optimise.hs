@@ -10,4 +10,5 @@ import qualified Vimscript.Optimise.Renamer  as Renamer
 import qualified Vimscript.Optimise.TCO      as TCO
 
 performTransforms :: Program -> Program
-performTransforms = Annotate.runPass . TCO.runPass . DCE.runPass . Renamer.runPass
+performTransforms =
+  Annotate.runPass . TCO.runPass . DCE.runPass . Renamer.runPass
