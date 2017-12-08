@@ -69,13 +69,20 @@ Install the Vimscript library for Idris:
 idris --install vimscript.ipkg
 ```
 
-## Run Examples
+## Build and Run Examples
+The project come accompanied by a convenience `make` script that will compile all the Idris files in `examples` folder.
 
 ``` shell
 make
-vim examples/lines.vim
+vim examples/loop.vim
 # :source %             (in Vim)
 ```
+
+In order to build a single example, you can compile it as bellow (this is what `make` is doing).
+
+```shell
+idris examples/myfile.idr -i lib/ --codegen vim -o examples/myfile.vim
+``` 
 
 ## License
 
