@@ -70,7 +70,8 @@ idris --install vimscript.ipkg
 ```
 
 ## Build and Run Examples
-The project come accompanied by a convenience `make` script that will compile all the Idris files in `examples` folder.
+
+The project comes accompanied by a convenience `make` script that will compile all the Idris files in `examples` folder.
 
 ``` shell
 make
@@ -78,7 +79,7 @@ vim examples/loop.vim
 # :source %             (in Vim)
 ```
 
-In order to build a single example, you can compile it as bellow (this is what `make` is doing).
+In order to build a single example, you can compile it as below (this is what `make` is doing).
 
 ```shell
 idris examples/myfile.idr -i lib/ --codegen vim -o examples/myfile.vim
