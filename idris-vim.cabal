@@ -11,7 +11,7 @@ Executable idris-codegen-vim
   Main-is:        Main.hs
   hs-source-dirs: codegen
 
-  Build-depends:  idris >= 1 && < 1.1
+  Build-depends:  idris
                 , base
                 , containers
                 , directory

@@ -5,6 +5,7 @@ import           Control.Monad      (void)
 import           Idris.AbsSyntax
 import           Idris.ElabDecls
 import           Idris.Main
+import           Idris.Options
 
 import           IRTS.CodegenVim
 import           IRTS.Compiler
