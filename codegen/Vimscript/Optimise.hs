@@ -26,7 +26,3 @@ performTransformsWithFlags flags =
     dceF = if dce flags then DCE.runPass else id
     tcoF = if tco flags then TCO.runPass else id
 
-
-performTransforms :: Program -> Program
-performTransforms =
-  Annotate.runPass . TCO.runPass . DCE.runPass . Renamer.runPass
