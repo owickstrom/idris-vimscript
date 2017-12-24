@@ -1,9 +1,9 @@
 {-
  - Implements Z-encoding for name mangling.
  -
- - This is mostly taken from the `zenc` package, which contains code from 
+ - This is mostly taken from the `zenc` package, which contains code from
  - the GHC source.
- - 
+ -
  - https://hackage.haskell.org/package/zenc
  -}
 module IRTS.CodegenVim.Internal.ZEncoding
