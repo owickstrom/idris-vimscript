@@ -19,13 +19,15 @@ before_install:
 - export PATH=/opt/ghc/$GHCVER/bin:$PATH
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
+- export RESOLVER=lts-10.0
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then STACK_OS=osx-x86_64 ; fi
 - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then STACK_OS=linux-x86_64 ; fi
 - travis_retry curl -L https://www.stackage.org/stack/$STACK_OS | tar xz --strip-components=1
   -C ~/.local/bin
-- stack --no-terminal setup
+- stack --no-terminal --resolver=$RESOLVER setup
 install:
-- travis_wait 30 stack install hlint stylish-haskell hindent idris
+- travis_wait 30 stack install --resolver=$RESOLVER hlint stylish-haskell
+- travis_wait 30 stack install --resolver=$RESOLVER idris
 script:
   # Lint and formatting checks
   - hlint codegen/
