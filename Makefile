@@ -10,7 +10,8 @@ EXAMPLE_IBCS=$(EXAMPLE_SRCS:examples/%.idr=examples/%.ibc)
 examples: $(EXAMPLE_TARGETS)
 
 examples/%.vim: examples/%.idr $(IDRIS_SRCS)
-	idris $< -i lib/ --codegen vim -o $@
+	stack exec idris -- $< -i lib/ --codegen vim -o $@
 
 clean:
-	rm $(EXAMPLE_IBCS) $(EXAMPLE_TARGETS)
+	stack exec idris -- --clean vimscript.ipkg
+	rm -f $(EXAMPLE_IBCS) $(EXAMPLE_TARGETS)
