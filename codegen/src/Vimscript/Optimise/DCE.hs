@@ -14,7 +14,7 @@ runPass = dce
 dce :: Program -> Program
 dce (Program es) = Program (filter (notDeadCode usedRefs) es)
   where
-    usedRefs = foldMap refsName (childrenBi es)
+    usedRefs = foldMap referredScriptScope es
 
 notDeadCode :: [Name] -> Stmt -> Bool
 notDeadCode useds =
@@ -22,8 +22,25 @@ notDeadCode useds =
     Function (ScopedName Script n) _ _ -> n `elem` useds
     _ -> True
 
-refsName :: ScopedName -> [Name]
-refsName =
+referredScriptScope :: Stmt -> [Name]
+referredScriptScope =
   \case
-    ScopedName Script n -> [n]
-    _ -> []
+    Let _ expr -> referredInExpr expr
+    Return expr -> referredInExpr expr
+    LineComment {} -> []
+    While expr block -> referredInExpr expr ++ foldMap referredScriptScope block
+    Break -> []
+    Continue -> []
+    Function _ _ block -> foldMap referredScriptScope block
+    Call (ScopedName Script n) exprs -> n : foldMap referredInExpr exprs
+    Call _ exprs -> foldMap referredInExpr exprs
+    Cond (CondStmt ifCase elseIfCases maybeElse) ->
+      referredCondCase ifCase ++
+      foldMap referredCondCase elseIfCases ++
+      maybe [] (foldMap referredScriptScope) maybeElse
+    Assign _ expr -> referredInExpr expr
+    BuiltInStmt _ expr -> referredInExpr expr
+  where
+    referredInExpr expr = [n | ScopedName Script n <- childrenBi expr]
+    referredCondCase (CondCase expr block) =
+      referredInExpr expr ++ foldMap referredScriptScope block
