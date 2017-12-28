@@ -3,9 +3,9 @@
 
 module Vimscript.Optimise.DCETest where
 
-import Test.Tasty.Hspec
+import           Test.Tasty.Hspec
 
-import Vimscript.AST
+import           Vimscript.AST
 import qualified Vimscript.Optimise.DCE as DCE
 
 sFoo = ScopedName Script "sFoo"
