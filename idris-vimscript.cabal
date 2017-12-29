@@ -1,4 +1,4 @@
-Name:           idris-vim
+Name:           idris-vimscript
 Version:        0.0.1.0
 License:        BSD3
 License-file:   LICENSE
@@ -7,11 +7,10 @@ Maintainer:	    Oskar Wickström <oskar.wickstrom@gmail.com>
 Build-Type:	Simple
 Cabal-Version:  >= 1.8
 
-Executable idris-codegen-vim
-  Main-is:        Main.hs
-  hs-source-dirs: codegen
+Library
+  hs-source-dirs: codegen/src
 
-  Build-depends:  idris >= 1 && < 1.1
+  build-depends:  idris >= 1 && < 1.1
                 , base
                 , containers
                 , directory
@@ -24,7 +23,7 @@ Executable idris-codegen-vim
                 , transformers
                 , uniplate
 
-  other-modules:    IRTS.CodegenVim
+  exposed-modules:  IRTS.CodegenVim
                     Vimscript.AST
                     Vimscript.Render
                     Vimscript.Optimise
@@ -33,4 +32,31 @@ Executable idris-codegen-vim
                     Vimscript.Optimise.Annotate
                     Vimscript.Optimise.Renamer
                     IRTS.CodegenVim.Internal.ZEncoding
+
+  ghc-options:      -Wall
+
+
+Executable idris-codegen-vim
+  main-is:        Main.hs
+  hs-source-dirs: codegen/exe
+
+  build-depends:  idris >= 1 && < 1.1
+                , base
+                , containers
+                , directory
+                , filepath
+                , idris-vimscript
   ghc-options:      -threaded -Wall
+
+Test-Suite idris-vimscript-tests
+    type:            exitcode-stdio-1.0
+    hs-source-dirs:  codegen/test
+    main-is:         Main.hs
+    other-modules:   Vimscript.Optimise.DCETest
+    build-depends:   base            >= 4        && < 5
+                   , idris           >= 1 && < 1.1
+                   , idris-vimscript
+                   , tasty
+                   , tasty-hunit
+                   , tasty-hspec
+                   , tasty-discover
