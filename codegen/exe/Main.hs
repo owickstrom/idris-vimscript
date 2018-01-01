@@ -25,7 +25,6 @@ showUsage = do
   putStrLn ""
   putStrLn "Available flags:"
   putStrLn "  --disable-dead-code-elimination : Disable dead code elimination"
-  putStrLn "  --disable-tail-call-optimisation : Disable tail call optimisation"
   exitSuccess
 
 getOpts :: IO Opts
@@ -39,11 +38,6 @@ getOpts = do
       where
         flags' = flags opts
         flags'' = flags' {Optimise.dce = False}
-    process opts ("--disable-tail-call-optimisation":xs) =
-      process (opts {flags = flags''}) xs
-      where
-        flags' = flags opts
-        flags'' = flags' {Optimise.tco = False}
     process opts (x:xs) = process (opts {inputs = x : inputs opts}) xs
     process opts [] = opts
 

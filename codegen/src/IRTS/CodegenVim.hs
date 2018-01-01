@@ -5,10 +5,13 @@
 module IRTS.CodegenVim where
 
 import           Control.Monad.Reader
+import           Control.Monad.State
 import           Data.Char
+import           Data.Generics.Uniplate.Data
 import           Data.HashMap.Strict                (HashMap)
 import qualified Data.HashMap.Strict                as HM
-import           Data.List
+import           Data.HashSet                       (HashSet)
+import qualified Data.HashSet                       as HashSet
 import           Data.Semigroup
 import qualified Data.Text                          as T
 import           Idris.Core.TT                      as Idris
@@ -25,12 +28,30 @@ codegenVim :: Optimise.Flags -> CodeGenerator
 codegenVim fs ci = do
   let decls = simpleDecls ci
   let prg =
-        Optimise.performTransformsWithFlags
-          fs
-          (runReader (genProgram decls) HM.empty)
+        Optimise.performTransformsWithFlags fs $
+        fst
+          (runCodegen
+             mempty
+             GenState {currentFunction = (), tailCalls = mempty}
+             (genProgram decls))
   writeFile (outputFile ci) (pretty 200 (Vim.renderProgram prg))
 
-type Gen a = Reader (HashMap Vim.Name Vim.ScopedName) a
+data GenState fn = GenState
+  { tailCalls       :: HashSet Vim.ScopedName
+  , currentFunction :: fn
+  } deriving (Show, Eq)
+
+type NameMappings = HashMap Vim.Name Vim.ScopedName
+
+type Gen fn a = StateT (GenState fn) (Reader NameMappings) a
+
+type ProgramGen a = StateT (GenState ()) (Reader NameMappings) a
+
+type FunctionGen a
+   = StateT (GenState (Vim.ScopedName, [Vim.Name])) (Reader NameMappings) a
+
+runCodegen :: NameMappings -> GenState fn -> Gen fn a -> (a, GenState fn)
+runCodegen names st gen = runReader (runStateT gen st) names
 
 vimName :: Idris.Name -> Vim.Name
 vimName n = Vim.Name (T.pack ("Idris_" <> foldMap vimChar (showCG n)))
@@ -39,18 +60,24 @@ vimName n = Vim.Name (T.pack ("Idris_" <> foldMap vimChar (showCG n)))
       | isAlpha x || isDigit x = [x]
       | otherwise = zEncode x
 
-lookupName :: Vim.Name -> Gen Vim.ScopedName
+lookupName :: Vim.Name -> Gen fn Vim.ScopedName
 lookupName n = do
   names <- ask
   case HM.lookup n names of
     Just sn -> pure sn
     Nothing -> pure (Vim.ScopedName Vim.Global n)
 
-withNewName :: Vim.ScopedName -> Gen a -> Gen a
-withNewName sn@(Vim.ScopedName _ n) = local (HM.insert n sn)
+asNameMapping :: Vim.ScopedName -> HashMap Vim.Name Vim.ScopedName
+asNameMapping sn@(Vim.ScopedName _ n) = HM.singleton n sn
 
-withNewNames :: [Vim.ScopedName] -> Gen a -> Gen a
-withNewNames ns g = foldl' (flip withNewName) g ns
+asNameMappings :: [Vim.ScopedName] -> HashMap Vim.Name Vim.ScopedName
+asNameMappings = foldMap asNameMapping
+
+withNewName :: Vim.ScopedName -> Gen fn a -> Gen fn a
+withNewName = local . HM.union . asNameMapping
+
+withNewNames :: [Vim.ScopedName] -> Gen fn a -> Gen fn a
+withNewNames = local . HM.union . asNameMappings
 
 loc :: Int -> Vim.Name
 loc i
@@ -60,7 +87,7 @@ loc i
 topLevelName :: Name -> Vim.ScopedName
 topLevelName n = Vim.ScopedName Vim.Script (vimName n)
 
-genProgram :: [(Name, SDecl)] -> Gen Vim.Program
+genProgram :: [(Name, SDecl)] -> ProgramGen Vim.Program
 genProgram defs = do
   let topLevelNames = map (topLevelName . fst) defs
   fns <- withNewNames topLevelNames (mapM genTopLevel defs)
@@ -69,28 +96,54 @@ genProgram defs = do
   let stmts = fns ++ [start]
   pure (Vim.Program stmts)
 
-genTopLevel :: (Name, SDecl) -> Gen Vim.Stmt
+genTopLevel :: (Name, SDecl) -> ProgramGen Vim.Stmt
 genTopLevel (n, SFun _ args _i def) = genFunc n args def
 
-genFunc :: Name -> [Name] -> SExp -> Gen Vim.Stmt
-genFunc n args def =
-  let fName = topLevelName n
-  in withNewName fName $ do
-       let args' = map loc [0 .. (length args - 1)]
-           argsScoped = map (Vim.ScopedName Vim.Argument) args'
-       stmts <-
-         withNewNames
-           argsScoped
-           (genStmts (withNewNames argsScoped . pure . Vim.Return) def)
-       pure (Vim.Function fName args' stmts)
+genFunc :: Name -> [Name] -> SExp -> ProgramGen Vim.Stmt
+genFunc n args def = withNewName fName stmt
+  where
+    fName = topLevelName n
+    args' = map loc [0 .. (length args - 1)]
+    localArgs =
+      map
+        (\an -> Vim.LocalLet an (Vim.Ref (Vim.ScopedName Vim.Argument an)))
+        args'
+    stmt = do
+      nameMappings <- ask
+      let argsScoped = map (Vim.ScopedName Vim.Argument) args'
+          (stmts, genState) =
+            runCodegen
+              (nameMappings `HM.union` asNameMappings argsScoped)
+              GenState {currentFunction = (fName, args'), tailCalls = mempty}
+              (genStmts (pure . Vim.Return) def)
+          isTailRec = fName `HashSet.member` tailCalls genState
+      if isTailRec
+        then pure (tcoFunc stmts)
+        else pure (Vim.Function fName args' stmts)
+    tcoFunc stmts =
+      let looped = [Vim.While (Vim.intExpr (1 :: Int)) (stmts ++ [Vim.Break])]
+      in Vim.Function fName args' (localArgs ++ argumentToLocal looped)
 
-genVar :: LVar -> Gen Vim.ScopedName
+argumentToLocal :: Vim.Block -> Vim.Block
+argumentToLocal = transformBi go
+  where
+    go (Vim.ScopedName s n) =
+      Vim.ScopedName
+        (if s == Vim.Argument
+           then Vim.Local
+           else s)
+        n
+
+genVar :: LVar -> FunctionGen Vim.ScopedName
 genVar =
   \case
     Loc n -> lookupName (loc n)
     Glob n -> lookupName (vimName n)
 
-genStmts :: (Vim.Expr -> Gen Vim.Stmt) -> SExp -> Gen Vim.Block
+addTailCall :: Vim.ScopedName -> FunctionGen ()
+addTailCall f = modify (\s -> s {tailCalls = HashSet.insert f (tailCalls s)})
+
+genStmts :: (Vim.Expr -> FunctionGen Vim.Stmt) -> SExp -> FunctionGen Vim.Block
 genStmts ret =
   \case
     SV (Glob n) -> do
@@ -101,11 +154,17 @@ genStmts ret =
       ln <- lookupName (loc n)
       stmt <- ret (Vim.Ref ln)
       pure [stmt]
-    SApp _ f params -> do
+    SApp tailCall f params -> do
       f' <- lookupName (vimName f)
-      params' <- mapM (fmap Vim.Ref . genVar) params
-      stmt <- ret (Vim.Apply (Vim.Ref f') params')
-      pure [stmt]
+      params' <- map Vim.Ref <$> mapM genVar params
+      (fnName, localArgs) <- gets currentFunction
+      if tailCall && f' == fnName
+        then do
+          addTailCall f'
+          pure (zipWith Vim.LocalLet localArgs params' ++ [Vim.Continue])
+        else do
+          stmt <- ret (Vim.Apply (Vim.Ref f') params')
+          pure [stmt]
     SOp op args -> do
       args' <- mapM (fmap Vim.Ref . genVar) args
       stmt <- genPrimFn op args' >>= ret
@@ -147,7 +206,11 @@ genStmts ret =
 projCons :: Vim.Expr -> Vim.Expr
 projCons expr = Vim.Proj expr (Vim.ProjSingle (Vim.intExpr (0 :: Int)))
 
-genCases :: (Vim.Expr -> Gen Vim.Stmt) -> Vim.Expr -> [SAlt] -> Gen Vim.Block
+genCases ::
+     (Vim.Expr -> FunctionGen Vim.Stmt)
+  -> Vim.Expr
+  -> [SAlt]
+  -> FunctionGen Vim.Block
 genCases ret c alts =
   foldM go ([], []) alts >>= \case
     ([], block) -> pure block
@@ -173,7 +236,7 @@ genCases ret c alts =
           lets <- mapM letProject letPairs
           block <- withNewNames newLocalNames (genStmts ret exp')
           pure (cases ++ [Vim.CondCase test' (lets ++ block)], defaultCase)
-          where letProject :: (Int, Int) -> Gen Vim.Stmt
+          where letProject :: (Int, Int) -> FunctionGen Vim.Stmt
                 letProject (i, v) = do
                   let expr = Vim.Proj c (Vim.ProjSingle (Vim.intExpr i))
                   pure (Vim.LocalLet (loc v) expr)
@@ -182,7 +245,7 @@ genCases ret c alts =
           pure (cases, defaultCase ++ block)
 
 -- | Translate constants to Vim expressions.
-genConst :: Const -> Gen Vim.Expr
+genConst :: Const -> FunctionGen Vim.Expr
 genConst =
   \case
     (I i) -> pure (Vim.Prim (Vim.Integer (fromIntegral i)))
@@ -211,7 +274,11 @@ asBinOp =
     _ -> Nothing
 
 -- | Translate primops from the Idris FFI to Vim commands.
-genForeign :: (Vim.Expr -> Gen Vim.Stmt) -> FDesc -> [Vim.Expr] -> Gen Vim.Block
+genForeign ::
+     (Vim.Expr -> FunctionGen Vim.Stmt)
+  -> FDesc
+  -> [Vim.Expr]
+  -> FunctionGen Vim.Block
 genForeign ret (FCon name) params =
   case (showCG name, params) of
     ("VIM_Echo", [x]) -> pure [Vim.BuiltInStmt "echo" x]
@@ -283,7 +350,7 @@ fromFFICon =
     x -> error ("Ilegal FFI mutable variable type " ++ show x)
 
 -- | Implement a @PrimFn@ in terms of Vim primitives.
-genPrimFn :: PrimFn -> [Vim.Expr] -> Gen Vim.Expr
+genPrimFn :: PrimFn -> [Vim.Expr] -> FunctionGen Vim.Expr
 genPrimFn LWriteStr [_, s] = pure (Vim.applyBuiltIn "Idris_echo" [s])
 genPrimFn LStrIndex [x, y] = pure (Vim.Proj x (Vim.ProjSingle y))
 genPrimFn LStrSubstr [i, l, s] =
