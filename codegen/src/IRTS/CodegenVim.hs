@@ -36,19 +36,26 @@ codegenVim fs ci = do
              (genProgram decls))
   writeFile (outputFile ci) (pretty 200 (Vim.renderProgram prg))
 
+-- | Keeps track of TCO information during top-level function code generation.
 data GenState fn = GenState
   { tailCalls       :: HashSet Vim.ScopedName
   , currentFunction :: fn
   } deriving (Show, Eq)
 
+-- | Map unscoped names to scoped ones (e.g. local, script, global).
 type NameMappings = HashMap Vim.Name Vim.ScopedName
 
+-- | Code generator monad.
 type Gen fn a = StateT (GenState fn) (Reader NameMappings) a
 
+-- | Code generator monad for top-level context.
 type ProgramGen a = StateT (GenState ()) (Reader NameMappings) a
 
-type FunctionGen a
-   = StateT (GenState (Vim.ScopedName, [Vim.Name])) (Reader NameMappings) a
+type CurrentFunction = (Vim.ScopedName, [Vim.Name])
+
+-- | Code generator monad for inside top-level functions, keeping track of
+-- the current function.
+type FunctionGen a = StateT (GenState CurrentFunction) (Reader NameMappings) a
 
 runCodegen :: NameMappings -> GenState fn -> Gen fn a -> (a, GenState fn)
 runCodegen names st gen = runReader (runStateT gen st) names
@@ -100,39 +107,34 @@ genTopLevel :: (Name, SDecl) -> ProgramGen Vim.Stmt
 genTopLevel (n, SFun _ args _i def) = genFunc n args def
 
 genFunc :: Name -> [Name] -> SExp -> ProgramGen Vim.Stmt
-genFunc n args def = withNewName fName stmt
+genFunc n args def = do
+  oldMappings <- ask
+  let newMappings = asNameMappings (map (Vim.ScopedName Vim.Argument) argNames)
+      (stmts, genState) =
+        runCodegen
+          (oldMappings `HM.union` newMappings)
+          GenState {currentFunction = (fName, argNames), tailCalls = mempty}
+          (genStmts (pure . Vim.Return) def)
+      isTailRec = fName `HashSet.member` tailCalls genState
+  if isTailRec
+    then pure (tcoFunc stmts)
+    else pure (Vim.Function fName argNames stmts)
   where
     fName = topLevelName n
-    args' = map loc [0 .. (length args - 1)]
+    argNames = map loc [0 .. (length args - 1)]
     localArgs =
       map
         (\an -> Vim.LocalLet an (Vim.Ref (Vim.ScopedName Vim.Argument an)))
-        args'
-    stmt = do
-      nameMappings <- ask
-      let argsScoped = map (Vim.ScopedName Vim.Argument) args'
-          (stmts, genState) =
-            runCodegen
-              (nameMappings `HM.union` asNameMappings argsScoped)
-              GenState {currentFunction = (fName, args'), tailCalls = mempty}
-              (genStmts (pure . Vim.Return) def)
-          isTailRec = fName `HashSet.member` tailCalls genState
-      if isTailRec
-        then pure (tcoFunc stmts)
-        else pure (Vim.Function fName args' stmts)
+        argNames
     tcoFunc stmts =
       let looped = [Vim.While (Vim.intExpr (1 :: Int)) (stmts ++ [Vim.Break])]
-      in Vim.Function fName args' (localArgs ++ argumentToLocal looped)
+      in Vim.Function fName argNames (localArgs ++ argumentToLocal looped)
 
 argumentToLocal :: Vim.Block -> Vim.Block
-argumentToLocal = transformBi go
-  where
-    go (Vim.ScopedName s n) =
-      Vim.ScopedName
-        (if s == Vim.Argument
-           then Vim.Local
-           else s)
-        n
+argumentToLocal =
+  transformBi $ \case
+    Vim.ScopedName Vim.Argument n -> Vim.ScopedName Vim.Local n
+    sn -> sn
 
 genVar :: LVar -> FunctionGen Vim.ScopedName
 genVar =
