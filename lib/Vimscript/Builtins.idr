@@ -357,6 +357,7 @@ data VimOption
   | ShiftWidth Int
   | Encoding VimEncoding
   | Background VimBackground
+  | StatusLine String
 
 set : VimOption -> VIM_IO ()
 set opt =
@@ -367,5 +368,7 @@ set opt =
        ShiftWidth n => unsafeSetUnary "shiftwidth" (show n)
        Encoding e => unsafeSetUnary "encoding" (ppVimEncoding e)
        Background bg => unsafeSetUnary "background" (ppVimBackground bg)
+       StatusLine s => unsafeSetUnary "statusline" s
+
 
 
