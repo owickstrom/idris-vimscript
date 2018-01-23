@@ -28,7 +28,6 @@ Library
                     Vimscript.Render
                     Vimscript.Optimise
                     Vimscript.Optimise.DCE
-                    Vimscript.Optimise.TCO
                     Vimscript.Optimise.Annotate
                     Vimscript.Optimise.Renamer
                     IRTS.CodegenVim.Internal.ZEncoding
