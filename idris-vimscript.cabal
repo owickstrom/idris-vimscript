@@ -10,7 +10,7 @@ Cabal-Version:  >= 1.8
 Library
   hs-source-dirs: codegen/src
 
-  build-depends:  idris >= 1 && < 1.1
+  Build-depends:  idris >= 1.2 && < 1.3
                 , base
                 , containers
                 , directory
@@ -40,7 +40,7 @@ Executable idris-codegen-vim
   main-is:        Main.hs
   hs-source-dirs: codegen/exe
 
-  build-depends:  idris >= 1 && < 1.1
+  build-depends:  idris >= 1.2 && < 1.3
                 , base
                 , containers
                 , directory
@@ -54,7 +54,7 @@ Test-Suite idris-vimscript-tests
     main-is:         Main.hs
     other-modules:   Vimscript.Optimise.DCETest
     build-depends:   base            >= 4        && < 5
-                   , idris           >= 1 && < 1.1
+                   , idris           >= 1.2 && < 1.3
                    , idris-vimscript
                    , tasty
                    , tasty-hunit
